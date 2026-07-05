@@ -63,5 +63,6 @@ py.install_sources(
   'src/pyfortmesa/__main__.py',
   'src/pyfortmesa/calc.py',
   'src/pyfortmesa/fortran_calc.py',
+  'src/pyfortmesa/mesa_env.py',
   subdir : 'pyfortmesa',
 )
