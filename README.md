@@ -5,6 +5,8 @@ from Python.
 
 ## Local install
 
+For development, use an editable install.
+
 From the top of this repository:
 
 ```bash
@@ -19,3 +21,26 @@ Run the current smoke test:
 ```bash
 python -m py_fortmesa
 ```
+
+## Wheel install
+
+To test the package as a built installable artifact, build a wheel:
+
+```bash
+python -m build
+```
+
+Then install the generated wheel:
+
+```bash
+python -m pip install dist/py_fortmesa-0.2.0-py3-none-any.whl
+```
+
+Run the same smoke test:
+
+```bash
+python -m py_fortmesa
+```
+
+The wheel path is useful for checking distribution behavior. For normal
+development work, prefer the editable install.
