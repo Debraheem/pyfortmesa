@@ -16,6 +16,20 @@ Ninja          -> actually runs the compile commands
 gfortran       -> compiles the Fortran source
 ```
 
+Compiler note:
+
+The small example extension only needs a working Fortran compiler. For the
+intended MESA workflow, install the current
+[MESA SDK](https://user.astro.wisc.edu/~townsend/static.php?ref=mesasdk) and
+source its `mesasdk_init.sh` before building or calling MESA-related code. This
+repo was tested with the MESA SDK `gfortran` from GCC 15.2.0, but the example
+code does not intentionally require that exact compiler version.
+
+Useful MESA links:
+
+- [MESA installation docs](https://docs.mesastar.org/en/latest/installation.html)
+- [MESA GitHub repository](https://github.com/MESAHub/mesa)
+
 Current source roles:
 
 ```text
