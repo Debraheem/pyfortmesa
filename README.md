@@ -51,7 +51,7 @@ python -m build
 Then install the generated wheel:
 
 ```bash
-python -m pip install dist/pyfortmesa-0.3.0-py3-none-any.whl
+python -m pip install dist/pyfortmesa-0.3.1-py3-none-any.whl
 ```
 
 Run the same smoke test:
@@ -89,13 +89,13 @@ python -m build
 Check the generated files:
 
 ```bash
-python -m twine check dist/pyfortmesa-0.3.0*
+python -m twine check dist/pyfortmesa-0.3.1*
 ```
 
 Upload to TestPyPI:
 
 ```bash
-python -m twine upload --repository testpypi dist/pyfortmesa-0.3.0*
+python -m twine upload --repository testpypi dist/pyfortmesa-0.3.1*
 ```
 
 When prompted, use a TestPyPI API token. If Twine asks for username and
@@ -110,7 +110,7 @@ python -m pip uninstall -y pyfortmesa
 python -m pip install \
   --index-url https://test.pypi.org/simple/ \
   --extra-index-url https://pypi.org/simple/ \
-  pyfortmesa==0.3.0
+  pyfortmesa==0.3.1
 ```
 
 Then run:
@@ -131,7 +131,7 @@ Python saw y = 50.0
 If upload fails with `400 Bad Request`, rerun with verbose output:
 
 ```bash
-python -m twine upload --repository testpypi --verbose dist/pyfortmesa-0.3.0*
+python -m twine upload --repository testpypi --verbose dist/pyfortmesa-0.3.1*
 ```
 
 Common causes are an already-uploaded version, a token for the wrong package
