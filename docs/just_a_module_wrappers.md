@@ -99,7 +99,7 @@ src/pyfortmesa/fortran/EOS/mesa_eos_public.f90
 src/pyfortmesa/fortran/KAP/mesa_kap_public.f90
 ```
 
-`mesa_eos_7` wraps `eosDT_get` for a seven-isotope composition:
+`mesa_eos_sample_composition` wraps `eosDT_get` for the sample composition:
 
 ```text
 [h1, he4, c12, n14, o16, ne20, mg24]
@@ -111,9 +111,9 @@ It returns a small set of common EOS quantities:
 lnPgas, lnE, lnS, grad_ad, gamma1
 ```
 
-`mesa_kap_7` wraps `kap_get` for the same composition. It first calls EOS so
-that KAP receives `lnfree_e`, `eta`, and their derivatives from the EOS instead
-of using dummy values.
+`mesa_kap_sample_composition` wraps `kap_get` for the same composition. It
+first calls EOS so that KAP receives `lnfree_e`, `eta`, and their derivatives
+from the EOS instead of using dummy values.
 
 ## Next implementation step
 
