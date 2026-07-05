@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=77.0.3", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["meson-python>=0.15.0", "meson>=1.1.0", "ninja", "numpy>=2.0"]
+build-backend = "mesonpy"
 
 [project]
 name = "pyfortmesa"
@@ -18,7 +18,3 @@ dependencies = ["numpy"]
 Homepage = "https://github.com/Debraheem/pyfortmesa"
 Repository = "https://github.com/Debraheem/pyfortmesa"
 Issues = "https://github.com/Debraheem/pyfortmesa/issues"
-
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["pyfortmesa*"]
