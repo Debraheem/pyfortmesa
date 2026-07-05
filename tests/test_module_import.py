@@ -1,4 +1,4 @@
-from py_fortmesa import small_calc
+from pyfortmesa import small_calc
 
 assert small_calc(4.0) == 50.0
 

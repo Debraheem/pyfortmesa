@@ -3,8 +3,8 @@ requires = ["setuptools>=77.0.3", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "py-fortmesa"
-version = "0.2.0"
+name = "pyfortmesa"
+version = "0.3.0"
 description = "A Python package for running Fortran (specifically MESA) via Python"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -15,10 +15,10 @@ authors = [
 dependencies = ["numpy"]
 
 [project.urls]
-Homepage = "https://github.com/Debraheem/py_fortMESA"
-Repository = "https://github.com/Debraheem/py_fortMESA"
-Issues = "https://github.com/Debraheem/py_fortMESA/issues"
+Homepage = "https://github.com/Debraheem/pyfortmesa"
+Repository = "https://github.com/Debraheem/pyfortmesa"
+Issues = "https://github.com/Debraheem/pyfortmesa/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["py_fortmesa*"]
+include = ["pyfortmesa*"]
