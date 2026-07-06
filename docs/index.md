@@ -1,7 +1,7 @@
 # pyfortmesa
 
-`pyfortmesa` is a small Python interface to selected Fortran and MESA routines.
-The MESA-enabled build currently wraps `const`, `chem`, `eos`, and `kap`, with
+`pyfortmesa` is a small Python interface to selected MESA microphysics
+routines. A build for MESA calls wraps `const`, `chem`, `eos`, and `kap`, with
 profile eos/kap calls intended for repeated microphysics work from Python.
 
 This is not meant to be a general MESA module reader. The package should stay

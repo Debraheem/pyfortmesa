@@ -1,15 +1,14 @@
 # Test Runner
 
-After building and installing the package into the active Python environment,
-run the normal checks with:
+From the repository root, run the normal source tree checks with:
 
 ```bash
 ./test
 ```
 
-That default mode is intentionally non-MESA. It runs import/unit checks, syntax
-checks for the MESA shell runners, a dry non-MESA summary-suite path, and a
-golden-output comparison. Every command writes stdout and stderr to
+That default mode does not call MESA. It runs import/unit checks, syntax
+checks for the MESA shell runners, a dry summary suite path that does not
+call MESA, and a golden-output comparison. Every command writes stdout and stderr to
 `tests/test_output/`, with a command/status index at:
 
 ```text
@@ -35,7 +34,8 @@ except for `tests/test_output/golden/`, which stores the committed baseline.
 
 ## Developing
 
-When a behavior change intentionally changes the non-MESA test output, inspect
+When a behavior change intentionally changes the test output from checks
+that do not call MESA, inspect
 `tests/test_output/golden_compare.log`. If the new output is correct, replace:
 
 ```text
@@ -49,20 +49,20 @@ tests/test_output/tmp_golden_output.txt
 ```
 
 There is no update script on purpose; replacing the baseline should be an
-explicit development action. MESA-backed timing output is not part of this
+explicit development action. MESA timing output is not part of this
 golden file because timing values and local MESA paths are machine-dependent.
 
-After installing a MESA-enabled build and setting `MESA_DIR`, run:
+After installing a build for MESA calls and setting `MESA_DIR`, run:
 
 ```bash
 ./test mesa
 ```
 
-That runs the quick checks first, then the optional MESA-backed eos/kap,
-hydrostatic, and saved-model profile timing runners. `./test all` is currently
+That runs the quick checks first, then the optional MESA eos/kap,
+hydrostatic, and saved model profile timing runners. `./test all` is currently
 an alias for `./test mesa`.
 
-The standard saved-model profile timing report is part of `./test mesa` through:
+The standard saved model profile timing report is part of `./test mesa` through:
 
 ```bash
 tests/mesa/run_profile_timing_suite.sh

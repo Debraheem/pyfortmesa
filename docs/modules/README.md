@@ -7,7 +7,7 @@ not replacements for MESA's public module docs.
 a small Python interface is useful for repeated microphysics work. For general
 MESA module access, use [pyMesa](https://github.com/rjfarmer/pyMesa).
 
-Active in the MESA-enabled build:
+Active in the build for MESA calls:
 
 ```text
 const -> selected values from MESA const_def

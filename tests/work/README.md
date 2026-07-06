@@ -2,7 +2,7 @@
 
 This directory is for small, readable examples. It is not the timing suite.
 
-After installing a MESA-enabled wheel:
+After installing a build for MESA calls for your `MESA_DIR`:
 
 ```bash
 conda activate pyfortmesa

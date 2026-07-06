@@ -32,14 +32,42 @@ use [pyMesa](https://github.com/rjfarmer/pyMesa).
 `pyfortmesa` does not build or install MESA. Build MESA separately, then point
 `MESA_DIR` at that tree.
 
-## Installation
+## Documentation
 
-### Python-only install
+Documentation: https://debraheem.github.io/pyfortmesa/
 
-Until `pyfortmesa` is on PyPI, install the Python-only package from GitHub:
+Useful source files:
+
+- Usage examples: `docs/usage.md`
+- Module reference: `docs/modules/README.md`
+- Test runner notes: `docs/testing.md`
+- Simple MESA work example: `tests/work/README.md`
+- MESA test scripts: `tests/mesa/README.md`
+- Docs publishing: `docs/publishing.md`
+
+Build the local documentation site with:
 
 ```bash
-python -m pip install --upgrade pip
+python -m pip install -r requirements-dev.txt
+mkdocs serve
+```
+
+The GitHub Pages workflow is `.github/workflows/pages.yml`. In the GitHub repo,
+set Pages -> Build and deployment -> Source to `GitHub Actions`.
+
+## Installation
+
+There are two normal install paths.
+
+### Python install
+
+This is the usual Python package install. Use it when you want to import
+`pyfortmesa`, read the docs, or use code that does not call MESA's compiled
+`const`, `chem`, `eos`, or `kap` routines.
+
+Until `pyfortmesa` is on PyPI, install it from GitHub:
+
+```bash
 python -m pip install "git+https://github.com/Debraheem/pyfortmesa.git@v0.4.0"
 ```
 
@@ -49,10 +77,8 @@ or from a local checkout:
 python -m pip install .
 ```
 
-This installs the Python package, the `pyfortmesa.mesa` API, and the runtime
-Python dependency `numpy`. It does not build the compiled MESA extension
-modules. This is enough for imports and Python-only use. Use the
-development install below for docs and repository tests.
+This installs the Python files and `numpy`. It does not compile or include the
+MESA wrapper extension modules, so it is not enough for real MESA eos/kap calls.
 
 A quick import check is:
 
@@ -67,48 +93,23 @@ pyfortmesa: MESA wrapper package
 public module: pyfortmesa.mesa
 ```
 
-### Development install
+### Build for MESA calls
 
-Use this path when editing the package, building docs, or running the repository
-test scripts:
+Use this when Python code will call MESA `const`, `chem`, `eos`, or `kap`.
+This build is local to your MESA checkout because the compiled wrapper modules
+must link against the shared MESA libraries in your `MESA_DIR`.
 
-```bash
-conda activate pyfortmesa
-python -m pip install --upgrade pip
-python -m pip install -r requirements-dev.txt
-python -m pip install --no-build-isolation --editable .
-```
+This repo uses a local wheel for MESA calls because pip installs compiled
+extension modules from a built `.whl` file, and those modules have to be built
+against the MESA libraries in your `MESA_DIR`.
 
-### Build local wheels
-
-Build and install the normal Python-only wheel with:
-
-```bash
-python -m pip install build
-./mk
-./install
-```
-
-`./mk` writes `dist/pyfortmesa-*.whl`. `./install` installs the newest wheel in
-`dist/` into the active Python environment.
-
-For source distributions or both wheel and source distribution:
-
-```bash
-./mk sdist
-./mk all
-```
-
-### MESA-enabled wheel
-
-Real eos/kap calls need a MESA-enabled wheel. Use a recent MESA tree with shared
-module libraries and pkg-config files under:
+Use a recent MESA tree with shared module libraries and pkg-config files under:
 
 ```text
 $MESA_DIR/build/*/lib/pkgconfig/mesa-*.pc
 ```
 
-Set up the MESA SDK and build the MESA-enabled wheel:
+Build and install the package for MESA calls with:
 
 ```bash
 conda activate pyfortmesa
@@ -120,9 +121,9 @@ export MESA_DIR=/path/to/current/mesa
 ./install
 ```
 
-`./mk mesa` sets `PKG_CONFIG_PATH` from the MESA build tree and runs the wheel
-build with `-Dwith_mesa=true`. The resulting wheel contains the compiled
-`const`, `chem`, `eos`, and `kap` extension modules for that MESA build.
+`./mk mesa` finds the MESA pkg-config files and builds `dist/pyfortmesa-*.whl`
+with the compiled `const`, `chem`, `eos`, and `kap` wrappers. `./install`
+installs that build into the active Python environment.
 
 A useful check before building is:
 
@@ -132,25 +133,62 @@ export PKG_CONFIG_PATH=$(find "$MESA_DIR/build" -path "*/lib/pkgconfig" -type d 
 pkg-config --cflags --libs mesa-const mesa-chem mesa-eos mesa-kap
 ```
 
-Classic static-only MESA installs are not supported by this wrapper. The package
-should fail clearly for those layouts rather than trying to static-link them.
+Classic static MESA installs are not supported by this wrapper. The package
+should fail clearly for those layouts rather than trying to link them statically.
 
-## Testing
+### Development setup
 
-Run the non-MESA checks:
+Use this when editing the package, building docs, or checking package builds:
+
+```bash
+conda activate pyfortmesa
+python -m pip install -r requirements-dev.txt
+python -m pip install --no-build-isolation --editable .
+```
+
+The default repository test command runs against the source tree directly:
 
 ```bash
 ./test
 ```
 
-After installing a MESA-enabled wheel, run the MESA-backed checks and profile
+It does not require the editable install, but it does require a Python
+environment with the runtime and test dependencies available.
+
+To check the normal Python package build:
+
+```bash
+python -m pip install build
+./mk
+./install
+```
+
+That build is still Python only. It is useful for packaging checks, not for MESA
+eos/kap calls.
+
+For a source distribution or a full Python package build:
+
+```bash
+./mk sdist
+./mk all
+```
+
+## Testing
+
+Run the checks that do not call MESA:
+
+```bash
+./test
+```
+
+After installing a build for MESA calls, run the MESA checks and profile
 timing suite:
 
 ```bash
 ./test mesa
 ```
 
-The standard saved-model timing report can also be run directly:
+The standard saved model timing report can also be run directly:
 
 ```bash
 tests/mesa/run_profile_timing_suite.sh
@@ -163,7 +201,7 @@ files because they depend on the local MESA build and machine.
 
 ## It's fast!
 
-The profile timing suite uses a saved 20 Msun MESA test-suite model after core
+The profile timing suite uses a saved 20 Msun MESA test suite model after core
 helium burning:
 
 ```text
@@ -176,7 +214,7 @@ and MESA build. The useful point is the scaling: batch the zones into one
 Fortran call, keep MESA handles alive, and let OpenMP parallelize the zone loop.
 
 ```text
-single-run summary, OMP_NUM_THREADS=10:
+single run summary, OMP_NUM_THREADS=10:
   physics    global_s  profile_s  ms/profile       eos/s       kap/s
   eos         0.725953   0.717115       2.479   3.550e+05           -
   kap         0.778931   0.770056       2.709           -   3.248e+05
@@ -192,7 +230,7 @@ combined eos+kap thread sweep:
        10       2.679     7.35        0.74   3.285e+05   3.285e+05
 ```
 
-The kap-only timing includes the eos electron-state call required by MESA
+The kap timing includes the eos electron state call required by MESA
 `kap_get`. When both eos and kap are needed for the same profile, the combined
 `eos_kap_profile` path computes the eos state once per zone and then passes it
 to kap.
@@ -267,8 +305,8 @@ finally:
     mesa.shutdown()
 ```
 
-Use `mesa.Eos().dt_profile(...)` for eos-only profile work. Use
-`mesa.Kap().opacity_profile(...)` for opacity-only work. When both eos and kap
+Use `mesa.Eos().dt_profile(...)` for eos profile work. Use
+`mesa.Kap().opacity_profile(...)` for opacity work. When both eos and kap
 are needed for the same zones, prefer `mesa.Kap().eos_kap_profile(...)` so the
 eos state is computed once per zone and then passed to kap.
 
@@ -289,24 +327,5 @@ If you use `pyfortmesa`, please cite it as:
 ## License
 
 `pyfortmesa` is distributed under the GNU Lesser General Public License v3.0
-only. The compiled MESA-enabled wheel is meant to link against a separately
-built MESA tree supplied by the user.
-
-## More documentation
-
-- Usage examples: `docs/usage.md`
-- Module reference: `docs/modules/README.md`
-- Test runner notes: `docs/testing.md`
-- Simple MESA work example: `tests/work/README.md`
-- MESA-backed test scripts: `tests/mesa/README.md`
-- Docs publishing: `docs/publishing.md`
-
-Build the local documentation site with:
-
-```bash
-python -m pip install -r requirements-dev.txt
-mkdocs serve
-```
-
-The GitHub Pages workflow is `.github/workflows/pages.yml`. In the GitHub repo,
-set Pages -> Build and deployment -> Source to `GitHub Actions`.
+only. The build for MESA calls links against a separately built MESA tree
+supplied by the user.

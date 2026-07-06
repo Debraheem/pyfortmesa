@@ -10,7 +10,8 @@ for that.
 
 ## MESA example
 
-First build and install the MESA-enabled wheel:
+Real MESA eos/kap calls require a build for MESA calls for the shared
+libraries in your `MESA_DIR`. From a checkout, build and install it with:
 
 ```bash
 python -m pip install -r requirements-dev.txt
@@ -21,8 +22,8 @@ export MESA_DIR=/path/to/current/mesa
 ./install
 ```
 
-Then a Python script can call MESA `const`, `chem`, `eos`, and `kap` wrappers through
-`pyfortmesa`:
+Then a Python script can call MESA `const`, `chem`, `eos`, and `kap` wrappers
+through `pyfortmesa`:
 
 ```python
 from pyfortmesa import mesa
@@ -227,7 +228,8 @@ docs/modules/kap.md
 
 ## Example Scripts
 
-Run the print-based examples after installing the matching build:
+Run the print-based examples after installing the matching package. The MESA
+examples require a build for MESA calls:
 
 ```bash
 conda activate pyfortmesa
@@ -244,12 +246,12 @@ tests/mesa/run_eos_from_saved_model.sh --with-mesa --thread-sweep
 tests/mesa/run_eos_from_saved_model.sh --with-mesa --thread-sweep --physics eos-kap
 ```
 
-`./test` is the normal non-MESA test entrypoint. `./test mesa` adds the optional
-MESA-backed checks and the saved-model timing suite. Both modes store raw test
+`./test` is the normal test entrypoint for checks that do not call MESA. `./test mesa` adds the optional
+MESA checks and the saved model timing suite. Both modes store raw test
 output under `tests/test_output/`, including `test_summary.txt`,
 `tmp_golden_output.txt`, and `golden_compare.log`; set
 `PYFORTMESA_TEST_OUTPUT_DIR` to choose a different output directory. The
-committed non-MESA golden baseline is
+committed golden baseline for checks that do not call MESA is
 `tests/test_output/golden/quick_test_output.txt`. The MESA scripts print input
 and output data. The `tests/work/` example is the smallest script to copy into
 new work. They are examples and integration checks, not MESA star models.
@@ -312,20 +314,20 @@ tests/mesa/run_profile_timing_suite.sh
 ```
 
 That suite runs eos, kap, combined eos+kap, and the combined eos+kap thread
-sweep, then prints compact single-run, global-breakdown, and thread-sweep
+sweep, then prints compact single run, global-breakdown, and thread-sweep
 tables. It also writes the raw logs and timing JSON files under local
 `tests/test_output/` for inspection. The wrapper defaults to `warmup=1` and `repeat=5`; override those with
-`PYFORTMESA_PROFILE_WARMUP` and `PYFORTMESA_PROFILE_REPEAT`. The single-run
+`PYFORTMESA_PROFILE_WARMUP` and `PYFORTMESA_PROFILE_REPEAT`. The single run
 thread count is chosen from `PYFORTMESA_SUMMARY_THREADS`, then `OMP_NUM_THREADS`,
 then the largest sweep count.
 
 The equivalent expanded command is:
 
 ```bash
-tests/mesa/run_eos_from_saved_model.sh --with-mesa --summary-suite --warmup 1 --repeat 5
+tests/mesa/run_eos_from_saved_model.sh --with-mesa --summary suite --warmup 1 --repeat 5
 ```
 
-The call-rate fields use only timed profile-call seconds. Warmup, array setup,
+The call rate fields use only timed profile call seconds. Warmup, array setup,
 output collection, and shutdown are reported separately.
 
 The script also supports `--nproc`, but that uses separate Python processes.
@@ -333,7 +335,7 @@ Do not combine process parallelism with `--thread-sweep`; the runner rejects
 that combination to avoid mixing process and thread parallelism.
 
 The script prints parse time, profile wall time, call counts, calls per second,
-phase-level timing, Fortran reconstruction checks, and first/middle/last sample
-outputs. Its `.mod` comparison checks the saved-model inputs: zone count,
-species count, round-trip `lnT/lnd`, and mass-fraction sums. That `.mod` file
+phase level timing, Fortran reconstruction checks, and first/middle/last sample
+outputs. Its `.mod` comparison checks the saved model inputs: zone count,
+species count, round trip `lnT/lnd`, and mass-fraction sums. That `.mod` file
 does not contain eos result columns such as `lnPgas` or `gamma1`.

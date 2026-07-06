@@ -1,6 +1,6 @@
 # kap
 
-Status: active in the optional MESA-enabled build.
+Status: active in the build for MESA calls.
 
 Purpose: call the MESA `kap` module for known density, temperature, and static
 composition. The wrapper calls eos first so kap receives MESA electron

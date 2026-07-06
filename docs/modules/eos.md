@@ -1,6 +1,6 @@
 # eos
 
-Status: active in the optional MESA-enabled build.
+Status: active in the build for MESA calls.
 
 Purpose: call MESA `eos` for known density, temperature, and static composition.
 
