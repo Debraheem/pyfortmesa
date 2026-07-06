@@ -369,30 +369,40 @@ It runs when a tag like `v0.4.0` or `v0.4.1` is pushed. The workflow
 runs `./test`, builds with `./mk all`, checks the distributions with `twine`,
 and uploads `dist/*` to PyPI using the GitHub secret `PYPI_API_TOKEN`.
 
-For a release, update the version in `pyproject.toml`, commit and push `main`,
-then create and push the matching tag. A git tag points to a commit, not a
-branch. Make release tags from a clean `main` commit, and do not tag feature
-branches for PyPI releases:
+Use release branches for PyPI releases. A branch like `release/v0.4` is an
+editable maintenance line. A tag like `v0.4.0` points to one exact commit and
+is what triggers the PyPI workflow.
+
+For the first `0.4.0` release, make the release branch from a clean `main`, then
+point the tag at that branch:
 
 ```bash
-git tag v0.4.1
-git push origin main
-git push origin v0.4.1
-```
-
-For the first PyPI upload of `0.4.0`, use the existing version only if PyPI
-has not accepted `0.4.0` yet. In that case, point the existing tag at the
-current release commit and force-push only that tag:
-
-```bash
-git status
-git log -1 --oneline
-git tag -f v0.4.0 HEAD
+git switch main
+git pull --ff-only origin main
+git switch -c release/v0.4
+git push origin release/v0.4
+git tag -f v0.4.0 release/v0.4
 git push --force origin v0.4.0
 ```
 
-That tag push triggers `.github/workflows/pypi.yml`. Do not move a version
-tag after PyPI has accepted that version. Bump the version instead.
+That tag push triggers `.github/workflows/pypi.yml`. No branch trigger is
+needed for publishing. Tags are global refs, so a pushed `v*` tag triggers the
+PyPI workflow whether the tagged commit is on `main` or on `release/v0.4`.
+
+For a later fix on the same release line, commit to `release/v0.4`, bump the
+version in `pyproject.toml`, then make a new tag:
+
+```bash
+git switch release/v0.4
+# edit files and bump pyproject.toml to 0.4.1
+git commit -am "release 0.4.1"
+git tag v0.4.1 release/v0.4
+git push origin release/v0.4
+git push origin v0.4.1
+```
+
+Do not move a tag after PyPI has accepted that version. PyPI files are
+immutable by version; bump the version instead.
 
 Use a PyPI API token stored in GitHub, not in the repo. The simplest setup
 is a repository secret named `PYPI_API_TOKEN`. The workflow also names a
