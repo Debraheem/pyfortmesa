@@ -10,17 +10,9 @@ for that.
 
 ## MESA example
 
-Real MESA eos/kap calls require a build for MESA calls for the shared
-libraries in your `MESA_DIR`. From a checkout, build and install it with:
-
-```bash
-python -m pip install -r requirements-dev.txt
-export MESASDK_ROOT=/Applications/mesasdk
-source $MESASDK_ROOT/bin/mesasdk_init.sh
-export MESA_DIR=/path/to/current/mesa
-./mk mesa
-./install
-```
+Real MESA eos/kap calls require a package build made for the shared libraries
+in your `MESA_DIR`. Build and install that package first; the exact commands
+are in [Developing](developing.md#build-for-mesa-calls).
 
 Then a Python script can call MESA `const`, `chem`, `eos`, and `kap` wrappers
 through `pyfortmesa`:
@@ -228,11 +220,10 @@ docs/modules/kap.md
 
 ## Example Scripts
 
-Run the print-based examples after installing the matching package. The MESA
-examples require a build for MESA calls:
+Run the print-based examples from an environment where the package is installed.
+The MESA examples also require a package build made for MESA calls:
 
 ```bash
-conda activate pyfortmesa
 export MESA_DIR=/path/to/current/mesa
 ./test
 ./test mesa

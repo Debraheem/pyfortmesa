@@ -15,32 +15,9 @@ loop. For general MESA module access, use
 - [Usage](usage.md)
 - [MESA modules](modules/README.md)
 - [Testing](testing.md)
+- [Developing](developing.md)
 - [Publishing the docs](publishing.md)
 
 ## Local docs preview
 
-Install the docs dependency:
-
-```bash
-python -m pip install -r requirements-dev.txt
-```
-
-Serve the docs locally:
-
-```bash
-mkdocs serve
-```
-
-Then open:
-
-```text
-http://127.0.0.1:8000
-```
-
-Build the static site:
-
-```bash
-mkdocs build --strict
-```
-
-The generated HTML is written to `site/`.
+The local docs build and preview commands are listed in [Developing](developing.md).

@@ -17,6 +17,7 @@ nav:
       - eos: modules/eos.md
       - kap: modules/kap.md
   - Testing: testing.md
+  - Developing: developing.md
   - Publishing: publishing.md
 
 exclude_docs: |

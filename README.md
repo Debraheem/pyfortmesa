@@ -41,23 +41,15 @@ Useful source files:
 - Usage examples: `docs/usage.md`
 - Module reference: `docs/modules/README.md`
 - Test runner notes: `docs/testing.md`
+- Development commands: `docs/developing.md`
 - Simple MESA work example: `tests/work/README.md`
 - MESA test scripts: `tests/mesa/README.md`
 - Docs publishing: `docs/publishing.md`
 
-Build the local documentation site with:
-
-```bash
-python -m pip install -r requirements-dev.txt
-mkdocs serve
-```
-
-The GitHub Pages workflow is `.github/workflows/pages.yml`. In the GitHub repo,
-set Pages -> Build and deployment -> Source to `GitHub Actions`.
+For local docs builds and GitHub Pages publishing notes, see
+`docs/developing.md` and `docs/publishing.md`.
 
 ## Installation
-
-There are two normal install paths.
 
 ### Python install
 
@@ -93,85 +85,38 @@ pyfortmesa: MESA wrapper package
 public module: pyfortmesa.mesa
 ```
 
-### Build for MESA calls
+### MESA calls
 
-Use this when Python code will call MESA `const`, `chem`, `eos`, or `kap`.
-This build is local to your MESA checkout because the compiled wrapper modules
-must link against the shared MESA libraries in your `MESA_DIR`.
+To call MESA `const`, `chem`, `eos`, or `kap` from Python, build this package
+locally against your MESA tree. The build needs three things: `MESASDK_ROOT` set
+and `$MESASDK_ROOT/bin/mesasdk_init.sh` sourced, `MESA_DIR` pointing at the MESA
+checkout, and four MESA pkg-config files in the MESA build directory. The
+pkg-config files are small `.pc` text files that tell the compiler where the
+MESA shared libraries and module files are.
 
-This repo uses a local wheel for MESA calls because pip installs compiled
-extension modules from a built `.whl` file, and those modules have to be built
-against the MESA libraries in your `MESA_DIR`.
-
-Use a recent MESA tree with shared module libraries and pkg-config files under:
+The files are:
 
 ```text
-$MESA_DIR/build/*/lib/pkgconfig/mesa-*.pc
+mesa-const.pc
+mesa-chem.pc
+mesa-eos.pc
+mesa-kap.pc
 ```
 
-Build and install the package for MESA calls with:
+They are produced by the MESA shared library build and normally live under:
 
-```bash
-conda activate pyfortmesa
-python -m pip install -r requirements-dev.txt
-export MESASDK_ROOT=/Applications/mesasdk
-source $MESASDK_ROOT/bin/mesasdk_init.sh
-export MESA_DIR=/path/to/current/mesa
-./mk mesa
-./install
+```text
+$MESA_DIR/build/<build-name>/lib/pkgconfig/
 ```
 
-`./mk mesa` finds the MESA pkg-config files and builds `dist/pyfortmesa-*.whl`
-with the compiled `const`, `chem`, `eos`, and `kap` wrappers. `./install`
-installs that build into the active Python environment.
+The MESA SDK does not create those files. You normally do not set
+`PKG_CONFIG_PATH` yourself. `./mk mesa` finds those
+pkg-config directories from `MESA_DIR` and sets `PKG_CONFIG_PATH` for the build.
+The MESA SDK sets up the compiler environment; it does not tell this package
+where your MESA build tree is.
 
-A useful check before building is:
-
-```bash
-echo $MESA_DIR
-export PKG_CONFIG_PATH=$(find "$MESA_DIR/build" -path "*/lib/pkgconfig" -type d | paste -sd: -)
-pkg-config --cflags --libs mesa-const mesa-chem mesa-eos mesa-kap
-```
-
-Classic static MESA installs are not supported by this wrapper. The package
-should fail clearly for those layouts rather than trying to link them statically.
-
-### Development setup
-
-Use this when editing the package, building docs, or checking package builds:
-
-```bash
-conda activate pyfortmesa
-python -m pip install -r requirements-dev.txt
-python -m pip install --no-build-isolation --editable .
-```
-
-The default repository test command runs against the source tree directly:
-
-```bash
-./test
-```
-
-It does not require the editable install, but it does require a Python
-environment with the runtime and test dependencies available.
-
-To check the normal Python package build:
-
-```bash
-python -m pip install build
-./mk
-./install
-```
-
-That build is still Python only. It is useful for packaging checks, not for MESA
-eos/kap calls.
-
-For a source distribution or a full Python package build:
-
-```bash
-./mk sdist
-./mk all
-```
+Full build commands, with and without `conda run -n pyfortmesa`, are in
+`docs/developing.md`.
 
 ## Testing
 
