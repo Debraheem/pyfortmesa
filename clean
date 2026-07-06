@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$repo_root"
+
+rm -rf build dist .mesonpy-* .pytest_cache .ruff_cache htmlcov
+rm -rf .pyfortmesa_caches .mesa_temp_cache mesa_caches mesa_temp_caches
+find . -type d -name __pycache__ -prune -exec rm -rf {} +
+find . -type d -name "*.egg-info" -prune -exec rm -rf {} +
+find . -type f \( -name "*.pyc" -o -name "*.pyo" \) -delete
+find . -type f -name ".DS_Store" -delete

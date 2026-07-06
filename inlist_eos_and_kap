@@ -1,0 +1,25 @@
+! Example pyfortmesa controls file.
+!
+! This is one MESA-style inlist with both EOS and KAP namelists. Use it with:
+!
+!    from pyfortmesa import mesa
+!    mesa.set_inlist("inlist_eos_and_kap")
+!
+! MESA loads its module defaults first, then applies these values. Python
+! keyword controls can still override the KAP controls for a specific call.
+
+&eos
+   use_FreeEOS = .true.
+   use_OPAL_SCVH = .true.
+   use_Skye = .true.
+/
+
+&kap
+   kap_file_prefix = 'gs98'
+   kap_CO_prefix = 'gs98_co'
+   kap_lowT_prefix = 'lowT_fa05_gs98'
+
+   Zbase = 0.02d0
+   use_Zbase_for_Type1 = .true.
+   use_Type2_opacities = .false.
+/

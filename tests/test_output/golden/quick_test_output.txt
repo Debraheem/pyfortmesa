@@ -1,0 +1,84 @@
+== py_compile
+command: python -m py_compile src/pyfortmesa/__init__.py src/pyfortmesa/__main__.py src/pyfortmesa/mesa.py src/pyfortmesa/mesa_support.py tests/mesa/eos_from_saved_model.py tests/mesa/mesa_mod_profile_reader.py tests/mesa/profile_timing_report.py tests/work/simple_chem_eos_kap.py tests/unit/test_mesa_profile_helpers.py tests/unit/test_profile_timing_report.py
+log: py_compile.log
+output:
+
+status: ok
+
+== package_main
+command: python -m pyfortmesa
+log: package_main.log
+output:
+pyfortmesa: MESA wrapper package
+public module: pyfortmesa.mesa
+
+status: ok
+
+== unit_module_import
+command: python tests/unit/test_module_import.py
+log: unit_module_import.log
+output:
+mesa_api: Chem, ok=True
+mesa_api: Eos, ok=True
+mesa_api: Kap, ok=True
+mesa_api: composition, ok=True
+mesa_api: constants, ok=True
+mesa_api: iso_id, ok=True
+mesa_api: iso_ids, ok=True
+mesa_api: isotope_index, ok=True
+mesa_api: sample_composition, ok=True
+mesa_api: set_cache_root, ok=True
+mesa_api: set_inlist, ok=True
+mesa_api: shutdown, ok=True
+
+status: ok
+
+== unit_mesa_profile_helpers
+command: python tests/unit/test_mesa_profile_helpers.py
+log: unit_mesa_profile_helpers.log
+output:
+nonpositive T: T values must be positive
+nonpositive Rho: Rho values must be positive
+shape mismatch: T and Rho must have the same length
+
+status: ok
+
+== unit_profile_timing_report
+command: python tests/unit/test_profile_timing_report.py
+log: unit_profile_timing_report.log
+output:
+profile_timing_report: ok
+
+status: ok
+
+== shell_run_eos_from_saved_model
+command: bash -n tests/mesa/run_eos_from_saved_model.sh
+log: shell_run_eos_from_saved_model.log
+output:
+
+status: ok
+
+== shell_run_profile_timing_suite
+command: bash -n tests/mesa/run_profile_timing_suite.sh
+log: shell_run_profile_timing_suite.log
+output:
+
+status: ok
+
+== shell_run_simple_work_example
+command: bash -n tests/work/run_simple_chem_eos_kap.sh
+log: shell_run_simple_work_example.log
+output:
+
+status: ok
+
+== no_mesa_summary_dry_run
+command: env -u MESA_DIR tests/mesa/run_eos_from_saved_model.sh --summary-suite --warmup 1 --repeat 5
+log: no_mesa_summary_dry_run.log
+output:
+== syntax check
+== saved-model parse check
+skipped parse check: MESA_DIR is not set; pass --model or export MESA_DIR
+skipped MESA-enabled run: pass --with-mesa to call EOS
+
+status: ok

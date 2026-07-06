@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$repo_root"
+
+shopt -s nullglob
+wheels=(dist/pyfortmesa-*.whl)
+
+if (( ${#wheels[@]} == 0 )); then
+  echo "No wheel found in dist/. Run ./mk first."
+  exit 1
+fi
+
+wheel="${wheels[0]}"
+for candidate in "${wheels[@]}"; do
+  if [[ "$candidate" -nt "$wheel" ]]; then
+    wheel="$candidate"
+  fi
+done
+
+echo "Installing $wheel"
+python -m pip install --force-reinstall --no-deps "$wheel"

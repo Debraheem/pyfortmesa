@@ -1,0 +1,2 @@
+# Runtime Python dependencies for using pyfortmesa.
+numpy>=2.0

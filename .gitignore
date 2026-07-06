@@ -1,0 +1,37 @@
+.DS_Store
+
+# Python generated files.
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+site/
+
+# Build and distribution output.
+.mesonpy-*/
+build/
+dist/
+
+# Local test output. Keep the committed no-MESA golden baseline.
+/test_output/
+/tests/test_output/*
+!/tests/test_output/golden/
+!/tests/test_output/golden/**
+
+
+# Local development notes and plans. Keep the public docs focused on the
+# supported interface, behavior, and usage.
+/notes/
+/docs/*plan*.md
+/docs/just_a_module_wrappers.md
+
+# MESA/pyfortmesa local cache output.
+.pyfortmesa_caches/
+.mesa_temp_cache/
+mesa_caches/
+mesa_temp_caches/

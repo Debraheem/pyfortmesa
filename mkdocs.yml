@@ -1,0 +1,30 @@
+site_name: pyfortmesa
+site_description: Python wrappers for selected MESA microphysics routines
+site_url: https://debraheem.github.io/pyfortmesa/
+repo_url: https://github.com/Debraheem/pyfortmesa
+repo_name: Debraheem/pyfortmesa
+
+theme:
+  name: readthedocs
+
+nav:
+  - Home: index.md
+  - Usage: usage.md
+  - MESA modules:
+      - overview: modules/README.md
+      - const: modules/const.md
+      - chem: modules/chem.md
+      - eos: modules/eos.md
+      - kap: modules/kap.md
+  - Testing: testing.md
+  - Publishing: publishing.md
+
+exclude_docs: |
+  profile_performance_plan.md
+  mesa_module_interface_plan.md
+  just_a_module_wrappers.md
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
