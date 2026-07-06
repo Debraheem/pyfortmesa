@@ -1,9 +1,5 @@
-# Development dependencies for building, testing, publishing, and rendering docs.
+# Development requirements for testing, publishing, and rendering docs.
 -r requirements.txt
 -r docs/requirements.txt
 
-build
-meson-python>=0.15.0
-meson>=1.1.0
-ninja
 twine

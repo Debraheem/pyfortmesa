@@ -51,11 +51,14 @@ For local docs builds and GitHub Pages publishing notes, see
 
 ## Installation
 
+Choose the install based on what you want to run. The examples below call MESA
+`eos` and `kap`, so they need the MESA calls install, not the plain Python
+install.
+
 ### Python install
 
-This is the usual Python package install. Use it when you want to import
-`pyfortmesa`, read the docs, or use code that does not call MESA's compiled
-`const`, `chem`, `eos`, or `kap` routines.
+Use this only when you want to import `pyfortmesa`, read the docs, or use code
+that does not call MESA's compiled `const`, `chem`, `eos`, or `kap` routines.
 
 Until `pyfortmesa` is on PyPI, install it from GitHub:
 
@@ -70,7 +73,7 @@ python -m pip install .
 ```
 
 This installs the Python files and `numpy`. It does not compile or include the
-MESA wrapper extension modules, so it is not enough for real MESA eos/kap calls.
+MESA wrapper extension modules, so it will not run the eos/kap examples below.
 
 A quick import check is:
 
@@ -85,11 +88,33 @@ pyfortmesa: MESA wrapper package
 public module: pyfortmesa.mesa
 ```
 
-### MESA calls
+### MESA calls install
 
-To call MESA `const`, `chem`, `eos`, or `kap` from Python, build this package
-locally against your MESA tree. The build needs three things: `MESASDK_ROOT` set
-and `$MESASDK_ROOT/bin/mesasdk_init.sh` sourced, `MESA_DIR` pointing at the MESA
+Use this path when Python code will call MESA `const`, `chem`, `eos`, or `kap`.
+It builds a local wheel, which is just Python's built install file, against the
+MESA tree in `MESA_DIR`, then installs that wheel into the current Python
+environment.
+
+From a checkout:
+
+```bash
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+
+export MESASDK_ROOT=/Applications/mesasdk
+source "$MESASDK_ROOT/bin/mesasdk_init.sh"
+export MESA_DIR=/path/to/current/mesa
+
+./clean
+./mk mesa
+./install
+```
+
+`./clean` removes old local build output before the MESA build. That is useful
+when switching between builds or changing `MESA_DIR`.
+
+The build needs three things: `MESASDK_ROOT` set and
+`$MESASDK_ROOT/bin/mesasdk_init.sh` sourced, `MESA_DIR` pointing at the MESA
 checkout, and four MESA pkg-config files in the MESA build directory. The
 pkg-config files are small `.pc` text files that tell the compiler where the
 MESA shared libraries and module files are.
@@ -110,12 +135,16 @@ $MESA_DIR/build/<build-name>/lib/pkgconfig/
 ```
 
 The MESA SDK does not create those files. You normally do not set
-`PKG_CONFIG_PATH` yourself. `./mk mesa` finds those
-pkg-config directories from `MESA_DIR` and sets `PKG_CONFIG_PATH` for the build.
-The MESA SDK sets up the compiler environment; it does not tell this package
-where your MESA build tree is.
+`PKG_CONFIG_PATH` yourself. `./mk mesa` finds those pkg-config directories from
+`MESA_DIR` and sets `PKG_CONFIG_PATH` for the build. The MESA SDK sets up the
+compiler environment; it does not tell this package where your MESA build tree
+is.
 
-Full build commands, with and without `conda run -n pyfortmesa`, are in
+`./mk mesa` writes `dist/pyfortmesa-*.whl`. `./install` installs the newest
+wheel from `dist/` into the Python environment running the command. After that,
+the usage examples below should work in that environment.
+
+More build commands, including `conda run -n pyfortmesa` forms, are in
 `docs/developing.md`.
 
 ## Testing
@@ -181,6 +210,9 @@ The kap timing includes the eos electron state call required by MESA
 to kap.
 
 ## Usage
+
+The examples in this section call MESA, so install the package with the MESA
+calls install above before running them.
 
 ### Example eos and kap call
 

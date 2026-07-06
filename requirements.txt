@@ -1,2 +1,6 @@
-# Runtime Python dependencies for using pyfortmesa.
+# Normal requirements for using this checkout and building the local MESA wheel.
 numpy>=2.0
+build
+meson-python>=0.15.0
+meson>=1.1.0
+ninja

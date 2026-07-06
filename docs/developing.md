@@ -15,6 +15,9 @@ environment is already active, use the shorter command. If not, use the
 The editable install is useful while editing the package. The default `./test`
 command runs against `src/` directly, so it does not require an editable install.
 
+`requirements-dev.txt` includes `requirements.txt`, then adds the docs, testing,
+and publishing tools used while developing the package.
+
 ## Package builds
 
 A wheel is Python's built install file, with a `.whl` suffix. The normal build
@@ -82,8 +85,9 @@ With an active environment:
 conda activate pyfortmesa
 python -m pip install -r requirements-dev.txt
 export MESASDK_ROOT=/Applications/mesasdk
-source $MESASDK_ROOT/bin/mesasdk_init.sh
+source "$MESASDK_ROOT/bin/mesasdk_init.sh"
 export MESA_DIR=/path/to/current/mesa
+./clean
 ./mk mesa
 ./install
 ```
@@ -93,11 +97,15 @@ Without activating first:
 ```bash
 conda run -n pyfortmesa python -m pip install -r requirements-dev.txt
 export MESASDK_ROOT=/Applications/mesasdk
-source $MESASDK_ROOT/bin/mesasdk_init.sh
+source "$MESASDK_ROOT/bin/mesasdk_init.sh"
 export MESA_DIR=/path/to/current/mesa
+conda run -n pyfortmesa ./clean
 conda run -n pyfortmesa ./mk mesa
 conda run -n pyfortmesa ./install
 ```
+
+`./clean` removes old local build output before the MESA build. That is useful
+when switching between builds or changing `MESA_DIR`.
 
 A useful preflight check is:
 
