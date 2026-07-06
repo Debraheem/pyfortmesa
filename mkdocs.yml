@@ -2,10 +2,12 @@ site_name: pyfortmesa
 site_description: Python wrappers for selected MESA microphysics routines
 site_url: https://debraheem.github.io/pyfortmesa/
 repo_url: https://github.com/Debraheem/pyfortmesa
-repo_name: Debraheem/pyfortmesa
+repo_name: see on GitHub
+edit_uri: ""
 
 theme:
   name: readthedocs
+  custom_dir: docs/overrides
 
 nav:
   - Home: index.md

@@ -36,15 +36,19 @@ use [pyMesa](https://github.com/rjfarmer/pyMesa).
 
 Documentation: https://debraheem.github.io/pyfortmesa/
 
-Useful source files:
+The site is built with MkDocs from the files under `docs/` and published with
+GitHub Pages. The docs footer links back to the GitHub repository.
 
+Useful docs and examples:
+
+- Installation: `docs/installation.md`
 - Usage examples: `docs/usage.md`
-- Module reference: `docs/modules/README.md`
+- MESA module reference: `docs/modules/README.md`
 - Test runner notes: `docs/testing.md`
 - Development commands: `docs/developing.md`
+- Docs publishing: `docs/publishing.md`
 - Simple MESA work example: `tests/work/README.md`
 - MESA test scripts: `tests/mesa/README.md`
-- Docs publishing: `docs/publishing.md`
 
 For local docs builds and GitHub Pages publishing notes, see
 `docs/developing.md` and `docs/publishing.md`.
