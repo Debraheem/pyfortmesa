@@ -365,9 +365,9 @@ The automatic path is the normal release path. The workflow file is:
 .github/workflows/pypi.yml
 ```
 
-It runs when a tag like `v0.4.1` is pushed. The workflow runs `./test`, builds
-with `./mk all`, checks the distributions with `twine`, and uploads `dist/*` to
-PyPI using the GitHub secret `PYPI_API_TOKEN`.
+It runs when a tag like `v0.4.0` or `v0.4.1` is pushed. The workflow
+runs `./test`, builds with `./mk all`, checks the distributions with `twine`,
+and uploads `dist/*` to PyPI using the GitHub secret `PYPI_API_TOKEN`.
 
 For a release, update the version in `pyproject.toml`, commit and push `main`,
 then create and push the matching tag:
@@ -377,6 +377,20 @@ git tag v0.4.1
 git push origin main
 git push origin v0.4.1
 ```
+
+For the first PyPI upload of `0.4.0`, use the existing version only if PyPI
+has not accepted `0.4.0` yet. In that case, point the existing tag at the
+current release commit and force-push only that tag:
+
+```bash
+git status
+git log -1 --oneline
+git tag -f v0.4.0 HEAD
+git push --force origin v0.4.0
+```
+
+That tag push triggers `.github/workflows/pypi.yml`. Do not move a version
+tag after PyPI has accepted that version. Bump the version instead.
 
 Use a PyPI API token stored in GitHub, not in the repo. The simplest setup
 is a repository secret named `PYPI_API_TOKEN`. The workflow also names a
