@@ -6,9 +6,10 @@ project(
   default_options : ['warning_level=2'],
 )
 
-py = import('python').find_installation(pure: false)
+with_mesa = get_option('with_mesa')
+py = import('python').find_installation(pure: not with_mesa)
 
-if get_option('with_mesa')
+if with_mesa
   add_languages('c', 'fortran', required : true)
 
   np_dep = dependency('numpy')

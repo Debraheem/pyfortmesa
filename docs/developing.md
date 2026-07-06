@@ -359,6 +359,11 @@ build the plain wheel and the source archive from the committed release tree.
 PyPI does not allow replacing an uploaded file with the same version number. If
 the version has already been uploaded, bump the version before trying again.
 
+The plain build uses `with_mesa=false`, so it installs only Python files and
+should produce a pure `py3-none-any` wheel for PyPI. The `./mk mesa` build uses
+`with_mesa=true`; that is the local compiled wheel for MESA calls and should
+not be uploaded to PyPI.
+
 The automatic path is the normal release path. The workflow file is:
 
 ```text
