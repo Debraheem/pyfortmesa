@@ -10,6 +10,11 @@ case "$mode" in
   wheel)
     python -m build --wheel
     ;;
+  mesa)
+    : "${MESA_DIR:?Set MESA_DIR to a supported new MESA tree first.}"
+    export PKG_CONFIG_PATH="$(python tools/mesa_pkg_config.py path)"
+    python -m build --wheel --no-isolation -Csetup-args=-Dwith_mesa=true
+    ;;
   sdist)
     python -m build --sdist
     ;;

@@ -12,7 +12,17 @@ license = "LGPL-3.0-only"
 authors = [
   { name = "Ebraheem Farag", email = "ebraheem.farag@yale.edu" }
 ]
-dependencies = ["numpy"]
+dependencies = ["numpy>=2.0"]
+
+[project.optional-dependencies]
+dev = [
+  "build",
+  "meson-python>=0.15.0",
+  "meson>=1.1.0",
+  "ninja",
+  "numpy>=2.0",
+  "twine",
+]
 
 [project.urls]
 Homepage = "https://github.com/Debraheem/pyfortmesa"

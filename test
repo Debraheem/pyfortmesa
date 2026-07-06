@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$repo_root"
+
+mode="${1:-quick}"
+output_dir="${PYFORTMESA_TEST_OUTPUT_DIR:-$repo_root/tests/test_output}"
+summary_file="$output_dir/test_summary.txt"
+tmp_golden_file="$output_dir/tmp_golden_output.txt"
+expected_golden_file="$repo_root/tests/test_output/golden/quick_test_output.txt"
+golden_diff_file="$output_dir/golden_compare.log"
+record_golden=1
+golden_case_count=0
+
+mkdir -p "$output_dir"
+: > "$summary_file"
+: > "$tmp_golden_file"
+: > "$golden_diff_file"
+
+run_case() {
+  local label="$1"
+  shift
+  local log_file="$output_dir/${label}.log"
+
+  echo "== $label"
+  printf '== %s\n' "$label" >> "$summary_file"
+  printf 'command:' >> "$summary_file"
+  printf ' %q' "$@" >> "$summary_file"
+  printf '\nlog: %s\n' "$log_file" >> "$summary_file"
+
+  if "$@" > "$log_file" 2>&1; then
+    echo "   ok: $log_file"
+    printf 'status: ok\n\n' >> "$summary_file"
+    if [[ "$record_golden" == "1" ]]; then
+      record_golden_case "$label" ok "$log_file" "$@"
+    fi
+  else
+    echo "   failed: $log_file"
+    printf 'status: failed\n\n' >> "$summary_file"
+    if [[ "$record_golden" == "1" ]]; then
+      record_golden_case "$label" failed "$log_file" "$@"
+    fi
+    tail -n 80 "$log_file" || true
+    exit 1
+  fi
+}
+
+record_golden_case() {
+  local label="$1"
+  local status="$2"
+  local log_file="$3"
+  shift 3
+
+  if (( golden_case_count > 0 )); then
+    printf '\n' >> "$tmp_golden_file"
+  fi
+  golden_case_count=$((golden_case_count + 1))
+
+  printf '== %s\n' "$label" >> "$tmp_golden_file"
+  printf 'command:' >> "$tmp_golden_file"
+  printf ' %q' "$@" >> "$tmp_golden_file"
+  printf '\nlog: %s.log\n' "$label" >> "$tmp_golden_file"
+  printf 'output:\n' >> "$tmp_golden_file"
+  cat "$log_file" >> "$tmp_golden_file" || true
+  printf '\nstatus: %s\n' "$status" >> "$tmp_golden_file"
+}
+
+compare_golden() {
+  local label="golden_compare"
+
+  echo "== $label"
+  printf '== %s\n' "$label" >> "$summary_file"
+  printf 'expected: %s\n' "$expected_golden_file" >> "$summary_file"
+  printf 'actual: %s\n' "$tmp_golden_file" >> "$summary_file"
+  printf 'diff: %s\n' "$golden_diff_file" >> "$summary_file"
+
+  if diff -u "$expected_golden_file" "$tmp_golden_file" > "$golden_diff_file"; then
+    echo "   ok: $golden_diff_file"
+    printf 'status: ok\n\n' >> "$summary_file"
+  else
+    echo "   failed: $golden_diff_file"
+    printf 'status: failed\n\n' >> "$summary_file"
+    tail -n 120 "$golden_diff_file" || true
+    exit 1
+  fi
+}
+
+run_quick() {
+  run_case py_compile \
+    python -m py_compile \
+      src/pyfortmesa/mesa.py \
+      tests/mesa/eos_from_saved_model.py \
+      tests/mesa/mesa_mod_profile_reader.py \
+      tests/mesa/profile_timing_report.py \
+      tests/unit/test_mesa_profile_helpers.py \
+      tests/unit/test_profile_timing_report.py
+
+  run_case package_main python -m pyfortmesa
+  run_case unit_module_import python tests/unit/test_module_import.py
+  run_case unit_mesa_profile_helpers python tests/unit/test_mesa_profile_helpers.py
+  run_case unit_profile_timing_report python tests/unit/test_profile_timing_report.py
+
+  run_case shell_run_eos_from_saved_model bash -n tests/mesa/run_eos_from_saved_model.sh
+  run_case shell_run_profile_timing_suite bash -n tests/mesa/run_profile_timing_suite.sh
+  run_case no_mesa_summary_dry_run \
+    env -u MESA_DIR \
+      tests/mesa/run_eos_from_saved_model.sh --summary-suite --warmup 1 --repeat 5
+}
+
+run_mesa() {
+  record_golden=0
+  run_case mesa_eos_kap_arbitrary \
+    tests/mesa/run_eos_kap_arbitrary_composition.sh --with-mesa
+  run_case mesa_hydrostatic_structure \
+    tests/mesa/run_hydrostatic_structure.sh --with-mesa
+  run_case mesa_profile_timing_suite \
+    tests/mesa/run_profile_timing_suite.sh
+}
+
+case "$mode" in
+  quick)
+    run_quick
+    compare_golden
+    ;;
+  mesa)
+    run_quick
+    compare_golden
+    run_mesa
+    ;;
+  all)
+    run_quick
+    compare_golden
+    run_mesa
+    ;;
+  *)
+    echo "usage: ./test [quick|mesa|all]"
+    echo "logs: $output_dir"
+    exit 2
+    ;;
+esac
+
+echo "== done"
+echo "summary: $summary_file"
+echo "temporary golden output: $tmp_golden_file"
