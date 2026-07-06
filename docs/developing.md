@@ -370,7 +370,9 @@ runs `./test`, builds with `./mk all`, checks the distributions with `twine`,
 and uploads `dist/*` to PyPI using the GitHub secret `PYPI_API_TOKEN`.
 
 For a release, update the version in `pyproject.toml`, commit and push `main`,
-then create and push the matching tag:
+then create and push the matching tag. A git tag points to a commit, not a
+branch. Make release tags from a clean `main` commit, and do not tag feature
+branches for PyPI releases:
 
 ```bash
 git tag v0.4.1

@@ -11,16 +11,22 @@ builds the pyfortmesa wheel with the compiled wrappers needed for MESA
 
 ## Python install
 
-Use this only when you want to import `pyfortmesa`, read the docs, or use code
+Use this when you want to import `pyfortmesa`, read the docs, or use code
 that does not call MESA's compiled `const`, `chem`, `eos`, or `kap` routines.
 
-Until `pyfortmesa` is on PyPI, install it from GitHub:
+Install the released Python package from PyPI:
+
+```bash
+python -m pip install pyfortmesa
+```
+
+To install an exact source tag from GitHub instead:
 
 ```bash
 python -m pip install "git+https://github.com/Debraheem/pyfortmesa.git@v0.4.0"
 ```
 
-or from a local checkout:
+Or install from a local checkout:
 
 ```bash
 python -m pip install .
