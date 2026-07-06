@@ -32,20 +32,27 @@ use [pyMesa](https://github.com/rjfarmer/pyMesa).
 `pyfortmesa` does not build or install MESA. Build MESA separately, then point
 `MESA_DIR` at that tree.
 
-## Install
+## Installation
 
-For local development from this checkout:
+### Python-only install
+
+Until `pyfortmesa` is on PyPI, install the Python-only package from GitHub:
 
 ```bash
-conda activate pyfortmesa
 python -m pip install --upgrade pip
-python -m pip install -r requirements-dev.txt
-python -m pip install --no-build-isolation --editable .
+python -m pip install "git+https://github.com/Debraheem/pyfortmesa.git@v0.4.0"
 ```
 
-That install gives the Python package and the `pyfortmesa.mesa` API. It does
-not build the compiled MESA extension modules. Use the wheel build below for a
-normal installable artifact.
+or from a local checkout:
+
+```bash
+python -m pip install .
+```
+
+This installs the Python package, the `pyfortmesa.mesa` API, and the runtime
+Python dependency `numpy`. It does not build the compiled MESA extension
+modules. This is enough for imports and Python-only use. Use the
+development install below for docs and repository tests.
 
 A quick import check is:
 
@@ -60,21 +67,30 @@ pyfortmesa: MESA wrapper package
 public module: pyfortmesa.mesa
 ```
 
-## Wheel build
+### Development install
 
-Build the normal Python wheel with:
+Use this path when editing the package, building docs, or running the repository
+test scripts:
 
 ```bash
 conda activate pyfortmesa
+python -m pip install --upgrade pip
 python -m pip install -r requirements-dev.txt
+python -m pip install --no-build-isolation --editable .
+```
+
+### Build local wheels
+
+Build and install the normal Python-only wheel with:
+
+```bash
+python -m pip install build
 ./mk
 ./install
 ```
 
-`./mk` runs the standard Python wheel build and writes `dist/pyfortmesa-*.whl`.
-`./install` installs the newest wheel in `dist/` into the active Python
-environment. This wheel is enough for imports, documentation, and the non-MESA
-test suite, but it does not include the compiled MESA wrappers.
+`./mk` writes `dist/pyfortmesa-*.whl`. `./install` installs the newest wheel in
+`dist/` into the active Python environment.
 
 For source distributions or both wheel and source distribution:
 
@@ -83,9 +99,10 @@ For source distributions or both wheel and source distribution:
 ./mk all
 ```
 
-## MESA-enabled wheel
+### MESA-enabled wheel
 
-Use a recent MESA tree with shared module libraries and pkg-config files under:
+Real eos/kap calls need a MESA-enabled wheel. Use a recent MESA tree with shared
+module libraries and pkg-config files under:
 
 ```text
 $MESA_DIR/build/*/lib/pkgconfig/mesa-*.pc
@@ -118,7 +135,7 @@ pkg-config --cflags --libs mesa-const mesa-chem mesa-eos mesa-kap
 Classic static-only MESA installs are not supported by this wrapper. The package
 should fail clearly for those layouts rather than trying to static-link them.
 
-## Test
+## Testing
 
 Run the non-MESA checks:
 
@@ -144,7 +161,45 @@ The committed deterministic baseline is
 `tests/test_output/golden/quick_test_output.txt`. MESA timings are not golden
 files because they depend on the local MESA build and machine.
 
-## Example eos and kap call
+## It's fast!
+
+The profile timing suite uses a saved 20 Msun MESA test-suite model after core
+helium burning:
+
+```text
+star/test_suite/20M_pre_ms_to_core_collapse/standard_after_core_he_burn.mod
+```
+
+That model has 880 zones and 22 isotopes. The numbers below are from one local
+run with `warmup = 1` and `repeat = 5`, so absolute times depend on the machine
+and MESA build. The useful point is the scaling: batch the zones into one
+Fortran call, keep MESA handles alive, and let OpenMP parallelize the zone loop.
+
+```text
+single-run summary, OMP_NUM_THREADS=10:
+  physics    global_s  profile_s  ms/profile       eos/s       kap/s
+  eos         0.725953   0.717115       2.479   3.550e+05           -
+  kap         0.778931   0.770056       2.709           -   3.248e+05
+  eos-kap     0.756551   0.747703       2.688   3.274e+05   3.274e+05
+
+combined eos+kap thread sweep:
+  threads  ms/profile  speedup  efficiency       eos/s       kap/s
+        1      19.692     1.00        1.00   4.469e+04   4.469e+04
+        2      10.358     1.90        0.95   8.496e+04   8.496e+04
+        4       5.437     3.62        0.91   1.618e+05   1.618e+05
+        6       3.686     5.34        0.89   2.387e+05   2.387e+05
+        8       2.919     6.75        0.84   3.015e+05   3.015e+05
+       10       2.679     7.35        0.74   3.285e+05   3.285e+05
+```
+
+The kap-only timing includes the eos electron-state call required by MESA
+`kap_get`. When both eos and kap are needed for the same profile, the combined
+`eos_kap_profile` path computes the eos state once per zone and then passes it
+to kap.
+
+## Usage
+
+### Example eos and kap call
 
 ```python
 from pyfortmesa import mesa
@@ -174,7 +229,7 @@ mesa.shutdown()
 `mesa.set_inlist(...)` should be called before the first eos or kap call in a
 Python process. The file can contain both `&eos` and `&kap` namelists.
 
-## Profile example
+### Profile example
 
 For profile work, do not call scalar eos or kap once per zone from Python. Batch
 the profile and let the Fortran wrapper run the zone loop.
