@@ -348,3 +348,53 @@ conda run -n pyfortmesa tests/mesa/run_profile_timing_suite.sh
 
 The quick `./test` path does not require `./mk mesa`. MESA tests require
 `MESA_DIR` and an installed `./mk mesa` build.
+
+
+## PyPI release with twine
+
+PyPI should get the plain Python release files, not a local `./mk mesa` wheel.
+The `./mk mesa` wheel is tied to one MESA checkout and compiler setup. For PyPI,
+build the plain wheel and the source archive from the committed release tree.
+
+Before uploading, make sure the version in `pyproject.toml` is the version you
+want to publish, `main` is pushed, and the matching release tag is pushed.
+PyPI does not allow replacing an uploaded file with the same version number. If
+the version has already been uploaded, bump the version before trying again.
+
+With an active environment:
+
+```bash
+conda activate pyfortmesa
+python -m pip install -r requirements-dev.txt
+./clean
+./mk all
+python -m twine check dist/*
+python -m twine upload -u __token__ dist/*
+```
+
+or, without activating first, do the build and check with `conda run`:
+
+```bash
+conda run -n pyfortmesa python -m pip install -r requirements-dev.txt
+conda run -n pyfortmesa ./clean
+conda run -n pyfortmesa ./mk all
+conda run -n pyfortmesa python -m twine check dist/*
+```
+
+For the final upload, use an active environment so the token prompt is plain:
+
+```bash
+conda activate pyfortmesa
+python -m twine upload -u __token__ dist/*
+```
+
+When `twine` asks for the password, paste the PyPI API token. Do not put the
+token in the command line or in a committed file.
+
+After upload, check the package page and test the install in a clean
+environment:
+
+```bash
+python -m pip install --upgrade pyfortmesa
+python -m pyfortmesa
+```
