@@ -1,0 +1,28 @@
+.pyfortmesa-code-block {
+  position: relative;
+}
+
+.pyfortmesa-code-block code {
+  padding-right: 4.75rem;
+}
+
+.pyfortmesa-copy-code {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  z-index: 1;
+  border: 1px solid #d6d6d6;
+  border-radius: 3px;
+  padding: 0.15rem 0.45rem;
+  background: #f8f8f8;
+  color: #404040;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.pyfortmesa-copy-code:hover,
+.pyfortmesa-copy-code:focus {
+  background: #e7f2fa;
+  border-color: #6ab0de;
+}

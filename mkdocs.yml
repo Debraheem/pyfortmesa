@@ -28,6 +28,11 @@ exclude_docs: |
   mesa_module_interface_plan.md
   just_a_module_wrappers.md
 
+extra_css:
+  - assets/copy-code.css
+extra_javascript:
+  - assets/copy-code.js
+
 markdown_extensions:
   - admonition
   - toc:
