@@ -13,11 +13,11 @@ def call_eos_and_kap() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     mesa.set_inlist(repo_root / "inlist_eos_and_kap")
 
-    # Inputs: MESA isotope names mapped to mass fractions. They must sum to 1.
+    # MESA isotope names and mass fractions.
     mass_fractions = {"h1": 0.70, "he4": 0.28, "c12": 0.02}
     mix = mesa.composition(mass_fractions)
 
-    # Inputs: temperature in K and density in g/cm^3.
+    # EOS and KAP state points.
     eos_T = 1.0e7
     eos_rho = 1.0e2
     kap_T = 1.0e6
@@ -27,7 +27,7 @@ def call_eos_and_kap() -> None:
     kap = mesa.Kap()
     kap_type2 = mesa.Kap(use_type2=True, zbase=0.02)
 
-    # Outputs: EOS returns log thermodynamic quantities and derivatives.
+    # EOS at fixed T and rho, then two inverse checks.
     eos_result = eos.dt(T=eos_T, Rho=eos_rho, comp=mix)
     eos_full_result = eos.dt_full(T=eos_T, Rho=eos_rho, comp=mix)
     eos_rho_solve = eos.solve_rho(
@@ -45,7 +45,7 @@ def call_eos_and_kap() -> None:
         comp=mix,
     )
 
-    # Outputs: KAP returns opacity and logarithmic opacity derivatives.
+    # KAP at fixed T and rho. KAP asks EOS for electron state internally.
     kap_result = kap.opacity(T=kap_T, Rho=kap_rho, comp=mix)
     kap_full_result = kap.opacity_full(T=kap_T, Rho=kap_rho, comp=mix)
     kap_type2_result = kap_type2.opacity_full(T=kap_T, Rho=kap_rho, comp=mix)

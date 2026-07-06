@@ -1,6 +1,6 @@
 """Small MESA chem/eos/kap work example.
 
-Run this after installing a MESA-enabled pyfortmesa wheel. It is intentionally
+Run this after installing pyfortmesa with `./mk mesa`. It is intentionally
 shorter than the timing tests; use it as a starting point for real Python code.
 """
 
@@ -30,6 +30,7 @@ def main() -> int:
     kap = mesa.Kap()
 
     try:
+        # One scalar CHEM, EOS, and KAP call.
         chem_info = mesa.Chem().composition_info(mix)
         eos_out = eos.dt_full(T=1.0e7, Rho=1.0e2, comp=mix)
         kap_out = kap.opacity_full(T=1.0e6, Rho=1.0e-7, comp=mix)
@@ -54,6 +55,7 @@ def main() -> int:
         )
         xa_profile = np.asfortranarray(xa_by_zone.T)
 
+        # One profile call. Fortran loops over zones.
         out = kap.eos_kap_profile(T_profile, rho_profile, chem_id, xa_profile)
         print("profile gamma1:", out["results"]["gamma1"])
         print("profile kappa:", out["kappa"])

@@ -1,6 +1,6 @@
 """Optional MESA integration example for a toy hydrostatic stellar model.
 
-Run after building/installing the MESA-enabled wheel:
+Run after installing with `./mk mesa`:
 
     tests/mesa/run_hydrostatic_structure.sh --with-mesa
 
@@ -51,7 +51,7 @@ def load_mesa_constants() -> MesaConstants:
 
 
 def eos_pressure(eos: mesa.Eos, T: float, rho: float, comp: mesa.Composition) -> float:
-    """Return gas pressure from the MESA EOS wrapper."""
+    """Return MESA EOS pressure at fixed T and rho."""
     return math.exp(eos.dt(T, rho, comp)["lnPgas"])
 
 
@@ -108,6 +108,7 @@ def solve_toy_hydrostatic_star(
     profile: list[Shell] = []
 
     for _ in range(zones + 1):
+        # KAP at this shell; KAP gets its electron state from EOS.
         kap_result = kap.opacity(T, rho, composition)
         kappa = kap_result["kappa"]
         luminosity = total_luminosity * min(m / luminosity_mass_scale, 1.0)
@@ -144,6 +145,7 @@ def solve_toy_hydrostatic_star(
             raise RuntimeError("toy hydrostatic integration stepped below zero")
 
         rho_guess = rho * (P_next / P) * (T / T_next)
+        # Close the step with rho(P,T) from EOS.
         rho_next = estimate_rho_for_pressure(
             eos,
             T_next,
@@ -221,6 +223,7 @@ def main() -> int:
     try:
         composition = mesa.composition({"h1": 0.70, "he4": 0.28, "c12": 0.02})
         constants = load_mesa_constants()
+        # CHEM gives the composition moments used for checks.
         chem_output = mesa.Chem().composition_info(composition)
         profile = solve_toy_hydrostatic_star(
             composition=composition,

@@ -52,7 +52,7 @@ There is no update script on purpose; replacing the baseline should be an
 explicit development action. MESA timing output is not part of this
 golden file because timing values and local MESA paths are machine-dependent.
 
-After installing a build for MESA calls and setting `MESA_DIR`, run:
+After installing with `./mk mesa` and setting `MESA_DIR`, run:
 
 ```bash
 ./test mesa

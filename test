@@ -89,22 +89,26 @@ compare_golden() {
 }
 
 run_quick() {
+  # Quick mode does not call MESA.
   run_case py_compile \
     python -m py_compile \
       src/pyfortmesa/__init__.py \
       src/pyfortmesa/__main__.py \
       src/pyfortmesa/mesa.py \
       src/pyfortmesa/mesa_support.py \
+      tools/mesa_pkg_config.py \
       tests/mesa/eos_from_saved_model.py \
       tests/mesa/mesa_mod_profile_reader.py \
       tests/mesa/profile_timing_report.py \
       tests/work/simple_chem_eos_kap.py \
       tests/unit/test_mesa_profile_helpers.py \
+      tests/unit/test_mesa_pkg_config.py \
       tests/unit/test_profile_timing_report.py
 
   run_case package_main python -m pyfortmesa
   run_case unit_module_import python tests/unit/test_module_import.py
   run_case unit_mesa_profile_helpers python tests/unit/test_mesa_profile_helpers.py
+  run_case unit_mesa_pkg_config python tests/unit/test_mesa_pkg_config.py
   run_case unit_profile_timing_report python tests/unit/test_profile_timing_report.py
 
   run_case shell_run_eos_from_saved_model bash -n tests/mesa/run_eos_from_saved_model.sh
@@ -116,6 +120,7 @@ run_quick() {
 }
 
 run_mesa() {
+  # MESA mode assumes the local build for MESA calls is installed.
   record_golden=0
   run_case mesa_eos_kap_arbitrary \
     tests/mesa/run_eos_kap_arbitrary_composition.sh --with-mesa

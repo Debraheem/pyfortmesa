@@ -1,6 +1,6 @@
 # eos
 
-Status: active in the build for MESA calls.
+Status: active in the `./mk mesa` build.
 
 Purpose: call MESA `eos` for known density, temperature, and static composition.
 

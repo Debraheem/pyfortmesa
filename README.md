@@ -20,8 +20,8 @@ Author: [Ebraheem Farag](https://github.com/Debraheem)
 This package is under active development and the Python API may still change.
 
 `pyfortmesa` is a focused Python wrapper for selected MESA microphysics calls.
-It currently wraps the MESA `const`, `chem`, `eos`, and `kap` modules, with a
-Python API for scalar calls and batched profile calls.
+It reads and calls selected MESA modules, currently `const`, `chem`, `eos`, and
+`kap`, with a Python API for scalar calls and batched profile calls.
 
 This is not a general MESA module reader. The point is to make repeated eos/kap
 calls from Python cheap enough to use inside real model-building code: cache the
@@ -52,8 +52,13 @@ For local docs builds and GitHub Pages publishing notes, see
 ## Installation
 
 Choose the install based on what you want to run. The examples below call MESA
-`eos` and `kap`, so they need the MESA calls install, not the plain Python
-install.
+`eos` and `kap`, so they need the `./mk mesa` build installed, not the
+plain Python install.
+
+`./mk` and `./mk mesa` are different builds. `./mk` builds the plain package.
+That is enough for imports, docs, and checks that do not call MESA. `./mk mesa`
+builds the pyfortmesa wheel with the compiled wrappers needed for MESA
+`eos` and `kap` calls, and for `./test mesa`.
 
 ### Python install
 
@@ -88,12 +93,12 @@ pyfortmesa: MESA wrapper package
 public module: pyfortmesa.mesa
 ```
 
-### MESA calls install
+### MESA wrapper install
 
 Use this path when Python code will call MESA `const`, `chem`, `eos`, or `kap`.
-It builds a local wheel, which is just Python's built install file, against the
-MESA tree in `MESA_DIR`, then installs that wheel into the current Python
-environment.
+A wheel is just Python's built install file. This repo uses a local wheel
+because the compiled wrappers must be built against the exact MESA tree and
+compiler setup on your machine.
 
 From a checkout:
 
@@ -113,36 +118,17 @@ export MESA_DIR=/path/to/current/mesa
 `./clean` removes old local build output before the MESA build. That is useful
 when switching between builds or changing `MESA_DIR`.
 
-The build needs three things: `MESASDK_ROOT` set and
-`$MESASDK_ROOT/bin/mesasdk_init.sh` sourced, `MESA_DIR` pointing at the MESA
-checkout, and four MESA pkg-config files in the MESA build directory. The
-pkg-config files are small `.pc` text files that tell the compiler where the
-MESA shared libraries and module files are.
+MESA must be built with shared module libraries. A current MESA development
+tree usually has this already. For a release tree, check
+`$MESA_DIR/utils/makefile_header`; if it says `USE_SHARED=no`, set
+`USE_SHARED=yes`, then rebuild MESA with `./clean` and `./install`. Static-only
+MESA builds are not supported.
 
-The files are:
-
-```text
-mesa-const.pc
-mesa-chem.pc
-mesa-eos.pc
-mesa-kap.pc
-```
-
-They are produced by the MESA shared library build and normally live under:
-
-```text
-$MESA_DIR/build/<build-name>/lib/pkgconfig/
-```
-
-The MESA SDK does not create those files. You normally do not set
-`PKG_CONFIG_PATH` yourself. `./mk mesa` finds those pkg-config directories from
-`MESA_DIR` and sets `PKG_CONFIG_PATH` for the build. The MESA SDK sets up the
-compiler environment; it does not tell this package where your MESA build tree
-is.
-
-`./mk mesa` writes `dist/pyfortmesa-*.whl`. `./install` installs the newest
-wheel from `dist/` into the Python environment running the command. After that,
-the usage examples below should work in that environment.
+`./mk mesa` finds the MESA pkg-config files under `MESA_DIR`, sets
+`PKG_CONFIG_PATH` for this build, and writes `dist/pyfortmesa-*.whl`.
+`./install` installs the newest wheel from `dist/` into the Python environment
+running the command. After that, the usage examples below should work in that
+environment.
 
 More build commands, including `conda run -n pyfortmesa` forms, are in
 `docs/developing.md`.
@@ -155,7 +141,7 @@ Run the checks that do not call MESA:
 ./test
 ```
 
-After installing a build for MESA calls, run the MESA checks and profile
+After installing the `./mk mesa` wheel, run the MESA checks and profile
 timing suite:
 
 ```bash
@@ -211,8 +197,8 @@ to kap.
 
 ## Usage
 
-The examples in this section call MESA, so install the package with the MESA
-calls install above before running them.
+The examples in this section call MESA, so install the `./mk mesa` wheel
+before running them.
 
 ### Example eos and kap call
 
@@ -304,5 +290,5 @@ If you use `pyfortmesa`, please cite it as:
 ## License
 
 `pyfortmesa` is distributed under the GNU Lesser General Public License v3.0
-only. The build for MESA calls links against a separately built MESA tree
+only. The `./mk mesa` build links against a separately built MESA tree
 supplied by the user.

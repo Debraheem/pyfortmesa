@@ -237,6 +237,7 @@ def _evaluate_zone_batch(
     kap_outputs: list[KapZoneOutput] = []
 
     try:
+        # Setup work: not part of the timed profile call.
         array_start = perf_counter()
         lnT, lnd, xa = _profile_arrays(zones, isotope_columns)
         profile_array_seconds = perf_counter() - array_start
@@ -255,63 +256,21 @@ def _evaluate_zone_batch(
         eos = mesa.Eos() if physics == "eos" else None
         kap = mesa.Kap() if physics in {"kap", "eos-kap"} else None
 
-        def run_once() -> tuple[object | None, object | None, dict[str, float]]:
-            elapsed = {
-                "eos": 0.0,
-                "kap": 0.0,
-                "eos_kap": 0.0,
-            }
-            eos_output = None
-            kap_output = None
-
-            if physics == "eos-kap":
-                eos_kap_start = perf_counter()
-                if kap is None:
-                    raise RuntimeError("KAP object is not initialized")
-                combined_output = kap.eos_kap_profile_from_logs(
-                    lnT,
-                    lnd,
-                    chem_id_values,
-                    xa,
-                )
-                elapsed["eos_kap"] = perf_counter() - eos_kap_start
-                eos_output = combined_output
-                kap_output = combined_output
-                return eos_output, kap_output, elapsed
-
-            if physics == "eos":
-                eos_start = perf_counter()
-                if eos is None:
-                    raise RuntimeError("EOS object is not initialized")
-                eos_output = eos.dt_profile_from_logs(
-                    lnT,
-                    lnd,
-                    chem_id_values,
-                    xa,
-                )
-                elapsed["eos"] = perf_counter() - eos_start
-
-            if physics == "kap":
-                kap_start = perf_counter()
-                if kap is None:
-                    raise RuntimeError("KAP object is not initialized")
-                kap_output = kap.opacity_profile_from_logs(
-                    lnT,
-                    lnd,
-                    chem_id_values,
-                    xa,
-                )
-                elapsed["kap"] = perf_counter() - kap_start
-
-            return eos_output, kap_output, elapsed
-
         for _ in range(warmup):
             warmup_start = perf_counter()
-            run_once()
+            _call_profile_physics(physics, eos, kap, lnT, lnd, chem_id_values, xa)
             warmup_profile_seconds += perf_counter() - warmup_start
 
         for _ in range(repeat):
-            eos_result_full, kap_result, elapsed = run_once()
+            eos_result_full, kap_result, elapsed = _call_profile_physics(
+                physics,
+                eos,
+                kap,
+                lnT,
+                lnd,
+                chem_id_values,
+                xa,
+            )
             eos_profile_call_seconds += elapsed["eos"]
             kap_profile_call_seconds += elapsed["kap"]
             eos_kap_profile_call_seconds += elapsed["eos_kap"]
@@ -381,6 +340,47 @@ def _evaluate_zone_batch(
         kap_outputs=kap_outputs,
         batch_timings=[timing],
     )
+
+
+def _call_profile_physics(
+    physics: str,
+    eos: object | None,
+    kap: object | None,
+    lnT: np.ndarray,
+    lnd: np.ndarray,
+    chem_id_values: np.ndarray,
+    xa: np.ndarray,
+) -> tuple[object | None, object | None, dict[str, float]]:
+    elapsed = {"eos": 0.0, "kap": 0.0, "eos_kap": 0.0}
+
+    if physics == "eos-kap":
+        if kap is None:
+            raise RuntimeError("KAP object is not initialized")
+        start = perf_counter()
+        # One Fortran loop: EOS first, then KAP uses that electron state.
+        combined = kap.eos_kap_profile_from_logs(lnT, lnd, chem_id_values, xa)
+        elapsed["eos_kap"] = perf_counter() - start
+        return combined, combined, elapsed
+
+    if physics == "eos":
+        if eos is None:
+            raise RuntimeError("EOS object is not initialized")
+        start = perf_counter()
+        # One Python call for the whole profile; Fortran loops over zones.
+        eos_output = eos.dt_profile_from_logs(lnT, lnd, chem_id_values, xa)
+        elapsed["eos"] = perf_counter() - start
+        return eos_output, None, elapsed
+
+    if physics == "kap":
+        if kap is None:
+            raise RuntimeError("KAP object is not initialized")
+        start = perf_counter()
+        # KAP asks EOS for lnfree_e and eta before kap_get.
+        kap_output = kap.opacity_profile_from_logs(lnT, lnd, chem_id_values, xa)
+        elapsed["kap"] = perf_counter() - start
+        return None, kap_output, elapsed
+
+    raise ValueError(f"unsupported physics: {physics}")
 
 
 def _profile_arrays(

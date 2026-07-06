@@ -1,7 +1,7 @@
 # pyfortmesa usage
 
 This page shows how to call the package from Python. Build and packaging
-commands live in the top-level `README.md`.
+commands live in [Installation](installation.md) and [Developing](developing.md).
 
 The MESA interface is narrow by design. It wraps selected `const`, `chem`,
 `eos`, and `kap` calls for code that needs repeated eos/kap evaluations. It is
@@ -10,9 +10,9 @@ for that.
 
 ## MESA example
 
-Real MESA eos/kap calls require a package build made for the shared libraries
-in your `MESA_DIR`. Build and install that package first; the exact commands
-are in [Developing](developing.md#build-for-mesa-calls).
+Real MESA eos/kap calls require the `./mk mesa` build for the shared
+libraries in your `MESA_DIR`. Build and install that package first; the normal
+commands are in [Installation](installation.md#mesa-wrapper-install).
 
 Then a Python script can call MESA `const`, `chem`, `eos`, and `kap` wrappers
 through `pyfortmesa`:
@@ -221,7 +221,7 @@ docs/modules/kap.md
 ## Example Scripts
 
 Run the print-based examples from an environment where the package is installed.
-The MESA examples also require a package build made for MESA calls:
+The MESA examples also require the `./mk mesa` build:
 
 ```bash
 export MESA_DIR=/path/to/current/mesa

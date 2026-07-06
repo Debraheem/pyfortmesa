@@ -1,6 +1,6 @@
 # const
 
-Status: active in the build for MESA calls.
+Status: active in the `./mk mesa` build.
 
 Purpose: expose selected values from MESA `const_def` so examples and tests do
 not carry local hard-coded CGS constants.

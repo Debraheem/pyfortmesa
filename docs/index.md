@@ -1,8 +1,27 @@
-# pyfortmesa
+# pyfortmesa [![Repo Status][status-badge]][status-link] [![Version][version-badge]][version-link] [![Docs][docs-badge]][docs-link] [![Python][python-badge]][python-link] [![MESA][mesa-badge]][mesa-link] [![License][license-badge]][license-link]
+
+[status-link]: https://www.repostatus.org/#experimental
+[status-badge]: https://img.shields.io/badge/repo_status-experimental-orange.svg
+[version-link]: https://github.com/Debraheem/pyfortmesa/releases/tag/v0.4.0
+[version-badge]: https://img.shields.io/github/v/tag/Debraheem/pyfortmesa?label=version
+[docs-link]: https://debraheem.github.io/pyfortmesa/
+[docs-badge]: https://github.com/Debraheem/pyfortmesa/actions/workflows/pages.yml/badge.svg?branch=main
+[python-link]: https://www.python.org/
+[python-badge]: https://img.shields.io/badge/python-%3E%3D3.10-blue.svg
+[mesa-link]: https://github.com/MESAHub/mesa
+[mesa-badge]: https://img.shields.io/badge/MESA-eos%2Fkap-4c78a8.svg
+[license-link]: https://www.gnu.org/licenses/lgpl-3.0.en.html
+[license-badge]: https://img.shields.io/badge/license-LGPL--3.0--only-blue.svg
+
+Author: [Ebraheem Farag](https://github.com/Debraheem)
+
+!!! warning "Experimental"
+    This package is under active development and the Python API may still change.
 
 `pyfortmesa` is a small Python interface to selected MESA microphysics
-routines. A build for MESA calls wraps `const`, `chem`, `eos`, and `kap`, with
-profile eos/kap calls intended for repeated microphysics work from Python.
+routines. It reads and calls selected MESA modules, currently `const`, `chem`,
+`eos`, and `kap`, with profile eos/kap calls intended for repeated microphysics
+work from Python.
 
 This is not meant to be a general MESA module reader. The package should stay
 focused on calls where a hand-written wrapper is useful: cached MESA setup,
@@ -12,6 +31,7 @@ loop. For general MESA module access, use
 
 ## Pages
 
+- [Installation](installation.md)
 - [Usage](usage.md)
 - [MESA modules](modules/README.md)
 - [Testing](testing.md)

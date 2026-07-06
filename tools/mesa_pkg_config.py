@@ -10,6 +10,13 @@ import sys
 from pathlib import Path
 
 
+PKG_CONFIG_PATTERNS = (
+    "lib/pkgconfig",
+    "build/lib/pkgconfig",
+    "build/*/lib/pkgconfig",
+)
+
+
 def mesa_dir() -> Path:
     value = os.environ.get("MESA_DIR")
     if not value:
@@ -17,13 +24,38 @@ def mesa_dir() -> Path:
     return Path(value).expanduser().resolve()
 
 
+def _has_mesa_pc(path: Path) -> bool:
+    return any(path.glob("mesa-*.pc"))
+
+
+def pkg_config_dirs() -> list[Path]:
+    root = mesa_dir()
+    candidates = [root / "lib" / "pkgconfig", root / "build" / "lib" / "pkgconfig"]
+    candidates.extend(sorted((root / "build").glob("*/lib/pkgconfig")))
+
+    paths: list[Path] = []
+    seen: set[str] = set()
+    for path in candidates:
+        key = str(path.resolve())
+        if key in seen:
+            continue
+        seen.add(key)
+        if path.is_dir() and _has_mesa_pc(path):
+            paths.append(path)
+    return paths
+
+
 def pkg_config_path() -> str:
-    build_dir = mesa_dir() / "build"
-    paths = sorted(path for path in build_dir.glob("*/lib/pkgconfig") if path.is_dir())
+    paths = pkg_config_dirs()
     if not paths:
+        root = mesa_dir()
+        searched = "\n  ".join(str(root / pattern) for pattern in PKG_CONFIG_PATTERNS)
         raise SystemExit(
-            f"No MESA pkg-config directories found under {build_dir}. "
-            "This build path supports the new shared-library MESA layout only."
+            "No MESA pkg-config files were found.\n"
+            f"Searched:\n  {searched}\n"
+            "pyfortmesa needs a MESA build with shared module libraries. "
+            "For release trees with USE_SHARED=no, set USE_SHARED=yes in "
+            "$MESA_DIR/utils/makefile_header and rebuild MESA."
         )
     return os.pathsep.join(str(path) for path in paths)
 

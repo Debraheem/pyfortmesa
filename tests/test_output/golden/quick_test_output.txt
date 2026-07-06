@@ -1,5 +1,5 @@
 == py_compile
-command: python -m py_compile src/pyfortmesa/__init__.py src/pyfortmesa/__main__.py src/pyfortmesa/mesa.py src/pyfortmesa/mesa_support.py tests/mesa/eos_from_saved_model.py tests/mesa/mesa_mod_profile_reader.py tests/mesa/profile_timing_report.py tests/work/simple_chem_eos_kap.py tests/unit/test_mesa_profile_helpers.py tests/unit/test_profile_timing_report.py
+command: python -m py_compile src/pyfortmesa/__init__.py src/pyfortmesa/__main__.py src/pyfortmesa/mesa.py src/pyfortmesa/mesa_support.py tools/mesa_pkg_config.py tests/mesa/eos_from_saved_model.py tests/mesa/mesa_mod_profile_reader.py tests/mesa/profile_timing_report.py tests/work/simple_chem_eos_kap.py tests/unit/test_mesa_profile_helpers.py tests/unit/test_mesa_pkg_config.py tests/unit/test_profile_timing_report.py
 log: py_compile.log
 output:
 
@@ -43,6 +43,13 @@ shape mismatch: T and Rho must have the same length
 
 status: ok
 
+== unit_mesa_pkg_config
+command: python tests/unit/test_mesa_pkg_config.py
+log: unit_mesa_pkg_config.log
+output:
+
+status: ok
+
 == unit_profile_timing_report
 command: python tests/unit/test_profile_timing_report.py
 log: unit_profile_timing_report.log
@@ -79,6 +86,6 @@ output:
 == syntax check
 == saved-model parse check
 skipped parse check: MESA_DIR is not set; pass --model or export MESA_DIR
-skipped MESA-enabled run: pass --with-mesa to call EOS
+skipped MESA run: pass --with-mesa to call EOS
 
 status: ok

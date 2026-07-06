@@ -1,6 +1,6 @@
 # chem
 
-Status: active in the build for MESA calls.
+Status: active in the `./mk mesa` build.
 
 Purpose: map isotope-name mass fractions to MESA `chem_id` values and compute
 basic composition moments.

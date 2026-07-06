@@ -9,6 +9,7 @@ theme:
 
 nav:
   - Home: index.md
+  - Installation: installation.md
   - Usage: usage.md
   - MESA modules:
       - overview: modules/README.md

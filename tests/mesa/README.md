@@ -1,7 +1,7 @@
 # MESA Test Scripts
 
 These scripts are optional MESA checks, not the simplest usage
-examples. They require a `pyfortmesa` build for MESA calls and a valid
+examples. They require pyfortmesa installed with `./mk mesa` and a valid
 `MESA_DIR`.
 
 Unit checks that do not call MESA live under `tests/unit/`. Timing and integration

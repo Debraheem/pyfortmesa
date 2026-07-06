@@ -18,6 +18,7 @@ uses_physics_arg=0
 uses_kap=0
 script_args=()
 
+# Split wrapper options from the Python worker options.
 for arg in "$@"; do
   case "$arg" in
     --with-mesa)
@@ -138,6 +139,7 @@ else
   echo "skipped parse check: MESA_DIR is not set; pass --model or export MESA_DIR"
 fi
 
+# From this point on, --with-mesa means real compiled MESA calls.
 if [[ "$with_mesa" == 1 ]]; then
   export PYFORTMESA_CACHE_DIR="${PYFORTMESA_CACHE_DIR:-$caller_dir/.pyfortmesa_caches}"
   installed_location="$(
@@ -149,7 +151,7 @@ if [[ "$with_mesa" == 1 ]]; then
     echo "import error:"
     echo "$import_check"
     echo
-    echo "Rebuild and reinstall the MESA-enabled wheel from the repo root:"
+    echo "Run `./mk mesa` and install from the repo root:"
     echo "  ./mk mesa"
     echo "  ./install"
     exit 1
@@ -170,7 +172,7 @@ if not hasattr(eos, "mesa_eos_shutdown"):
     echo "extension error:"
     echo "$extension_check"
     echo
-    echo "Rebuild and reinstall the MESA-enabled wheel from the repo root:"
+    echo "Run `./mk mesa` and install from the repo root:"
     echo "  ./mk mesa"
     echo "  ./install"
     exit 1
@@ -190,16 +192,17 @@ if not hasattr(kap, "mesa_eos_kap_profile_from_logs"):
       echo "extension error:"
       echo "$kap_extension_check"
       echo
-      echo "Rebuild and reinstall the MESA-enabled wheel from the repo root:"
+      echo "Run `./mk mesa` and install from the repo root:"
       echo "  ./mk mesa"
       echo "  ./install"
       exit 1
     fi
   fi
 
+  # Run one profile job, optionally pinning OMP_NUM_THREADS.
   run_profile_check() {
     if (( $# == 1 )); then
-      echo "== MESA-enabled EOS profile check (OMP_NUM_THREADS=$1)"
+      echo "== MESA EOS profile check (OMP_NUM_THREADS=$1)"
       if (( ${#script_args[@]} > 0 )); then
         OMP_NUM_THREADS="$1" PYFORTMESA_WITH_MESA=1 python "$test_file" "${script_args[@]}"
       else
@@ -208,7 +211,7 @@ if not hasattr(kap, "mesa_eos_kap_profile_from_logs"):
       return
     fi
 
-    echo "== MESA-enabled EOS profile check (OMP_NUM_THREADS=${OMP_NUM_THREADS:-unset})"
+    echo "== MESA EOS profile check (OMP_NUM_THREADS=${OMP_NUM_THREADS:-unset})"
     if (( ${#script_args[@]} > 0 )); then
       PYFORTMESA_WITH_MESA=1 python "$test_file" "${script_args[@]}"
     else
@@ -216,6 +219,7 @@ if not hasattr(kap, "mesa_eos_kap_profile_from_logs"):
     fi
   }
 
+  # Write timing JSON files, then print one compact report.
   run_profile_summary_suite() {
     report_dir="${PYFORTMESA_PROFILE_REPORT_DIR:-$repo_root/tests/test_output}"
     mkdir -p "$report_dir"
@@ -280,5 +284,5 @@ if not hasattr(kap, "mesa_eos_kap_profile_from_logs"):
     run_profile_check
   fi
 else
-  echo "skipped MESA-enabled run: pass --with-mesa to call EOS"
+  echo "skipped MESA run: pass --with-mesa to call EOS"
 fi

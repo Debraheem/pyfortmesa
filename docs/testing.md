@@ -20,7 +20,7 @@ tests/test_output/
 ```
 
 To run the optional MESA integration and profile timing checks after
-installing a build for MESA calls:
+installing the `./mk mesa` build:
 
 ```bash
 ./test mesa
