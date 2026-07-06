@@ -350,16 +350,43 @@ The quick `./test` path does not require `./mk mesa`. MESA tests require
 `MESA_DIR` and an installed `./mk mesa` build.
 
 
-## PyPI release with twine
+## PyPI release
 
 PyPI should get the plain Python release files, not a local `./mk mesa` wheel.
 The `./mk mesa` wheel is tied to one MESA checkout and compiler setup. For PyPI,
 build the plain wheel and the source archive from the committed release tree.
 
-Before uploading, make sure the version in `pyproject.toml` is the version you
-want to publish, `main` is pushed, and the matching release tag is pushed.
 PyPI does not allow replacing an uploaded file with the same version number. If
 the version has already been uploaded, bump the version before trying again.
+
+The automatic path is the normal release path. The workflow file is:
+
+```text
+.github/workflows/pypi.yml
+```
+
+It runs when a tag like `v0.4.1` is pushed. The workflow runs `./test`, builds
+with `./mk all`, checks the distributions with `twine`, and uploads `dist/*` to
+PyPI using the GitHub secret `PYPI_API_TOKEN`.
+
+For a release, update the version in `pyproject.toml`, commit and push `main`,
+then create and push the matching tag:
+
+```bash
+git tag v0.4.1
+git push origin main
+git push origin v0.4.1
+```
+
+Use a PyPI API token stored in GitHub, not in the repo. The simplest setup
+is a repository secret named `PYPI_API_TOKEN`. The workflow also names a
+GitHub environment called `pypi`, so an environment secret with the same name
+works too if you want an approval step before upload.
+
+The manual path is useful for the first upload or for debugging the release
+files locally. Before uploading manually, make sure the version in
+`pyproject.toml` is the version you want to publish, `main` is pushed, and the
+matching release tag is pushed.
 
 With an active environment:
 
