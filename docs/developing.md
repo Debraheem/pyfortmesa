@@ -407,7 +407,9 @@ git push origin v0.4.1
 ```
 
 Do not move a tag after PyPI has accepted that version. PyPI files are
-immutable by version; bump the version instead.
+immutable by version; bump the version instead. After the release tag succeeds,
+switch back to `main` for normal development. Keep `release/v0.4` for `0.4.x`
+patches only.
 
 Use a PyPI API token stored in GitHub, not in the repo. The simplest setup
 is a repository secret named `PYPI_API_TOKEN`. The workflow also names a
