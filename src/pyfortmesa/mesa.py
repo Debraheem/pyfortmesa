@@ -30,16 +30,31 @@ from .mesa_support import (
     _optional_control_value,
     _prepare_composition,
     _prepare_mesa_cache_env,
+    _timed_api,
     composition,
+    disable_timing,
+    enable_timing,
+    format_output_schema,
+    format_timing_summary,
     iso_id,
     iso_ids,
     isotope_index,
+    output_columns,
+    output_schema,
+    output_schema_names,
+    print_output_schema,
+    print_timing_summary,
+    reset_timing,
     sample_composition,
     set_cache_root,
     set_inlist,
+    timing,
+    timing_enabled,
+    timing_summary,
 )
 
 
+@_timed_api("constants")
 def constants() -> dict[str, float]:
     """Return selected MESA `const_def` values in cgs units.
 
@@ -53,6 +68,7 @@ def constants() -> dict[str, float]:
     return _named_vector(MESA_CONSTANT_NAMES, constant_values)
 
 
+@_timed_api("shutdown")
 def shutdown(*, release_tables: bool = False) -> None:
     """Release persistent MESA state held by pyfortmesa wrappers.
 
@@ -96,6 +112,7 @@ def shutdown(*, release_tables: bool = False) -> None:
         _check_ierr("MESA CHEM shutdown", ierr)
 
 
+@_timed_api("composition_info")
 def composition_info(
     comp: Composition | Mapping[str, float] | Iterable[float] | None,
 ) -> dict[str, float]:
@@ -151,18 +168,11 @@ def _eos_full_output_dict(
         "results": _named_vector(EOS_RESULT_NAMES, res),
         "d_dlnRho": _named_vector(EOS_RESULT_NAMES, d_dlnRho),
         "d_dlnT": _named_vector(EOS_RESULT_NAMES, d_dlnT),
-        "d_dxa": _named_matrix_by_rows(
-            EOS_DXA_RESULT_NAMES,
-            composition_data.names,
-            d_dxa,
-        ),
+        "d_dxa": _named_matrix_by_rows(EOS_DXA_RESULT_NAMES, composition_data.names, d_dxa),
     }
 
 
-def _as_fortran_vector(
-    values: Iterable[float] | Iterable[int],
-    dtype: object,
-) -> np.ndarray:
+def _as_fortran_vector(values: Iterable[float] | Iterable[int], dtype: object) -> np.ndarray:
     if isinstance(values, np.ndarray):
         array = np.asarray(values, dtype=dtype)
     else:
@@ -170,67 +180,245 @@ def _as_fortran_vector(
     return np.asfortranarray(array)
 
 
-def _prepare_profile_arrays(
-    lnT: Iterable[float],
-    lnd: Iterable[float],
-    chem_id_values: Iterable[int],
-    xa: object,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    lnT_array = _as_fortran_vector(lnT, np.float64)
-    lnd_array = _as_fortran_vector(lnd, np.float64)
-    chem_id_array = _as_fortran_vector(chem_id_values, np.int32)
-    xa_array = np.asfortranarray(np.asarray(xa, dtype=np.float64))
+_PROFILE_INPUT_MODES = {
+    "value": 0,
+    "values": 0,
+    "physical": 0,
+    "linear": 0,
+    "log": 1,
+    "logs": 1,
+    "ln": 1,
+    "natural_log": 1,
+    "natural_logs": 1,
+    "log10": 2,
+    "log_10": 2,
+    "base10": 2,
+    "base_10": 2,
+}
 
-    if lnT_array.ndim != 1 or lnd_array.ndim != 1:
-        raise ValueError("lnT and lnd must be one-dimensional")
-    if lnT_array.shape != lnd_array.shape:
-        raise ValueError("lnT and lnd must have the same length")
-    if chem_id_array.ndim != 1:
-        raise ValueError("chem_id_values must be one-dimensional")
-    if xa_array.shape != (chem_id_array.size, lnT_array.size):
-        raise ValueError("xa must have shape (species, nzones)")
-    if lnT_array.size <= 0:
-        raise ValueError("profile must contain at least one zone")
-    if not np.all(np.isfinite(lnT_array)):
-        raise ValueError("lnT values must be finite")
-    if not np.all(np.isfinite(lnd_array)):
-        raise ValueError("lnd values must be finite")
+
+def _profile_input_mode(input_mode: str | int) -> int:
+    if isinstance(input_mode, bool):
+        raise ValueError("input_mode must be 'value', 'log', or 'log10'")
+    if isinstance(input_mode, int):
+        if input_mode in {0, 1, 2}:
+            return input_mode
+        raise ValueError("input_mode integer must be 0, 1, or 2")
+
+    key = str(input_mode).strip().lower().replace("-", "_").replace(" ", "_")
+    try:
+        return _PROFILE_INPUT_MODES[key]
+    except KeyError as exc:
+        raise ValueError("input_mode must be 'value', 'log', or 'log10'") from exc
+
+
+def _profile_output_mode(output: str) -> str:
+    key = str(output).strip().lower().replace("-", "_")
+    if key in {"raw", "array", "arrays"}:
+        return "raw"
+    if key in {"dict", "dictionary", "named"}:
+        return "dict"
+    raise ValueError("output must be 'raw' or 'dict'")
+
+
+def _prepare_profile_xa(chem_id_array: np.ndarray, xa: object, nzones: int) -> np.ndarray:
+    xa_input = np.asarray(xa, dtype=np.float64)
+    if xa_input.ndim == 1:
+        if xa_input.shape != (chem_id_array.size,):
+            raise ValueError("1D xa must have shape (species,)")
+        xa_array = np.asfortranarray(
+            np.broadcast_to(xa_input[:, np.newaxis], (chem_id_array.size, nzones))
+        )
+    else:
+        xa_array = np.asfortranarray(xa_input)
+        if xa_array.shape != (chem_id_array.size, nzones):
+            raise ValueError("xa must have shape (species,) or (species, nzones)")
+
     if not np.all(np.isfinite(xa_array)):
         raise ValueError("xa values must be finite")
     if np.any(xa_array < 0.0):
         raise ValueError("xa values must be non-negative")
+    return xa_array
 
-    return lnT_array, lnd_array, chem_id_array, xa_array
 
+def _prepare_profile_arrays(
+    first_values: Iterable[float],
+    second_values: Iterable[float],
+    chem_id_values: Iterable[int],
+    xa: object,
+    *,
+    input_mode: str | int,
+    first_name: str,
+    second_name: str,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    mode_value = _profile_input_mode(input_mode)
+    first_array = _as_fortran_vector(first_values, np.float64)
+    second_array = _as_fortran_vector(second_values, np.float64)
+    chem_id_array = _as_fortran_vector(chem_id_values, np.int32)
 
-def _profile_logs(
-    T: Iterable[float],
-    Rho: Iterable[float],
-) -> tuple[np.ndarray, np.ndarray]:
-    T_array = _as_fortran_vector(T, np.float64)
-    Rho_array = _as_fortran_vector(Rho, np.float64)
-
-    if T_array.ndim != 1 or Rho_array.ndim != 1:
-        raise ValueError("T and Rho must be one-dimensional")
-    if T_array.shape != Rho_array.shape:
-        raise ValueError("T and Rho must have the same length")
-    if T_array.size <= 0:
+    if first_array.ndim != 1 or second_array.ndim != 1:
+        raise ValueError(f"{first_name} and {second_name} must be one-dimensional")
+    if first_array.shape != second_array.shape:
+        raise ValueError(f"{first_name} and {second_name} must have the same length")
+    if chem_id_array.ndim != 1:
+        raise ValueError("chem_id_values must be one-dimensional")
+    if first_array.size <= 0:
         raise ValueError("profile must contain at least one zone")
-    if not np.all(np.isfinite(T_array)):
-        raise ValueError("T values must be finite")
-    if not np.all(np.isfinite(Rho_array)):
-        raise ValueError("Rho values must be finite")
-    if np.any(T_array <= 0.0):
-        raise ValueError("T values must be positive")
-    if np.any(Rho_array <= 0.0):
-        raise ValueError("Rho values must be positive")
+    if not np.all(np.isfinite(first_array)):
+        raise ValueError(f"{first_name} values must be finite")
+    if not np.all(np.isfinite(second_array)):
+        raise ValueError(f"{second_name} values must be finite")
 
-    return (
-        np.asfortranarray(np.log(T_array)),
-        np.asfortranarray(np.log(Rho_array)),
-    )
+    if mode_value == 0:
+        if np.any(first_array <= 0.0):
+            raise ValueError(f"{first_name} values must be positive")
+        if np.any(second_array <= 0.0):
+            raise ValueError(f"{second_name} values must be positive")
+
+    xa_array = _prepare_profile_xa(chem_id_array, xa, first_array.size)
+
+    return first_array, second_array, chem_id_array, xa_array
 
 
+def _prepare_profile_coordinate(
+    values: Iterable[float], chem_id_values: Iterable[int], xa: object,
+    *, input_mode: str | int, name: str
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    mode_value = _profile_input_mode(input_mode)
+    value_array = _as_fortran_vector(values, np.float64)
+    chem_id_array = _as_fortran_vector(chem_id_values, np.int32)
+
+    if value_array.ndim != 1:
+        raise ValueError(f"{name} must be one-dimensional")
+    if chem_id_array.ndim != 1:
+        raise ValueError("chem_id_values must be one-dimensional")
+    if value_array.size <= 0:
+        raise ValueError("profile must contain at least one zone")
+    if not np.all(np.isfinite(value_array)):
+        raise ValueError(f"{name} values must be finite")
+    if mode_value == 0 and np.any(value_array <= 0.0):
+        raise ValueError(f"{name} values must be positive")
+
+    xa_array = _prepare_profile_xa(chem_id_array, xa, value_array.size)
+    return value_array, chem_id_array, xa_array
+
+
+def _profile_value_array(
+    values: Iterable[float] | float, nzones: int, name: str, *, positive: bool = False
+) -> np.ndarray:
+    array = np.asarray(values, dtype=np.float64)
+    if array.ndim == 0:
+        array = np.full(nzones, float(array), dtype=np.float64)
+    elif array.ndim != 1:
+        raise ValueError(f"{name} must be scalar or one-dimensional")
+    elif array.size != nzones:
+        raise ValueError(f"{name} must be scalar or have length nzones")
+
+    if not np.all(np.isfinite(array)):
+        raise ValueError(f"{name} values must be finite")
+    if positive and np.any(array <= 0.0):
+        raise ValueError(f"{name} values must be positive")
+    return np.asfortranarray(array)
+
+
+def _eos_profile_output(
+    T: object, Rho: object, res: object, nzones: int, output: str
+) -> dict[str, object]:
+    result_array = np.asarray(res, dtype=np.float64)
+    if result_array.shape != (len(EOS_RESULT_NAMES), nzones):
+        raise RuntimeError(
+            "MESA EOS profile wrapper returned result shape "
+            f"{result_array.shape}; expected ({len(EOS_RESULT_NAMES)}, {nzones})"
+        )
+
+    if _profile_output_mode(output) == "raw":
+        return {
+            "T": np.asarray(T, dtype=np.float64),
+            "Rho": np.asarray(Rho, dtype=np.float64),
+            "results": result_array,
+            "result_names": EOS_RESULT_NAMES,
+        }
+
+    return {
+        "T": np.asarray(T, dtype=np.float64),
+        "Rho": np.asarray(Rho, dtype=np.float64),
+        "results": {
+            name: result_array[index, :].copy()
+            for index, name in enumerate(EOS_RESULT_NAMES)
+        },
+    }
+
+
+def _eos_kap_profile_output(
+    T: object, Rho: object, res: object, kappa: object, dlnkap_dlnRho: object,
+    dlnkap_dlnT: object, nzones: int, output: str
+) -> dict[str, object]:
+    result_array = np.asarray(res, dtype=np.float64)
+    if result_array.shape != (len(EOS_RESULT_NAMES), nzones):
+        raise RuntimeError(
+            "MESA EOS/KAP profile wrapper returned EOS result shape "
+            f"{result_array.shape}; expected ({len(EOS_RESULT_NAMES)}, {nzones})"
+        )
+
+    profile = {
+        "T": np.asarray(T, dtype=np.float64),
+        "Rho": np.asarray(Rho, dtype=np.float64),
+        "kappa": np.asarray(kappa, dtype=np.float64),
+        "dlnkap_dlnRho": np.asarray(dlnkap_dlnRho, dtype=np.float64),
+        "dlnkap_dlnT": np.asarray(dlnkap_dlnT, dtype=np.float64),
+    }
+
+    if _profile_output_mode(output) == "raw":
+        return {
+            **profile,
+            "results": result_array,
+            "result_names": EOS_RESULT_NAMES,
+        }
+
+    return {
+        **profile,
+        "results": {
+            name: result_array[index, :].copy()
+            for index, name in enumerate(EOS_RESULT_NAMES)
+        },
+    }
+
+
+def _eos_solve_profile_output(
+    value_name: str, log_name: str, value: object, log_value: object,
+    res: object, d_dlnRho: object, d_dlnT: object, d_dxa: object,
+    eos_calls: object, nzones: int, species: int
+) -> dict[str, object]:
+    result_array = np.asarray(res, dtype=np.float64)
+    d_dlnRho_array = np.asarray(d_dlnRho, dtype=np.float64)
+    d_dlnT_array = np.asarray(d_dlnT, dtype=np.float64)
+    d_dxa_array = np.asarray(d_dxa, dtype=np.float64)
+    if result_array.shape != (len(EOS_RESULT_NAMES), nzones):
+        raise RuntimeError(
+            "MESA EOS solve profile wrapper returned result shape "
+            f"{result_array.shape}; expected ({len(EOS_RESULT_NAMES)}, {nzones})"
+        )
+    if d_dxa_array.shape != (len(EOS_DXA_RESULT_NAMES), species, nzones):
+        raise RuntimeError(
+            "MESA EOS solve profile wrapper returned d_dxa shape "
+            f"{d_dxa_array.shape}; expected "
+            f"({len(EOS_DXA_RESULT_NAMES)}, {species}, {nzones})"
+        )
+
+    return {
+        value_name: np.asarray(value, dtype=np.float64),
+        log_name: np.asarray(log_value, dtype=np.float64),
+        "results": result_array,
+        "d_dlnRho": d_dlnRho_array,
+        "d_dlnT": d_dlnT_array,
+        "d_dxa": d_dxa_array,
+        "eos_calls": np.asarray(eos_calls, dtype=np.int32),
+        "result_names": EOS_RESULT_NAMES,
+        "d_dxa_result_names": EOS_DXA_RESULT_NAMES,
+    }
+
+
+@_timed_api("eos.dt")
 def eos_dt(
     T: float,
     Rho: float,
@@ -262,6 +450,7 @@ def eos_dt(
     }
 
 
+@_timed_api("eos.dt_full")
 def eos_dt_full(
     T: float,
     Rho: float,
@@ -287,15 +476,42 @@ def eos_dt_full(
     return _eos_full_output_dict(composition_data, res, d_dlnRho, d_dlnT, d_dxa)
 
 
+@_timed_api("eos.dt_profile")
 def eos_dt_profile(
     T: Iterable[float],
     Rho: Iterable[float],
     chem_id_values: Iterable[int],
     xa: object,
+    *,
+    input_mode: str | int = "value",
+    output: str = "raw",
 ) -> dict[str, object]:
-    """Evaluate EOS across a profile using `T` and `Rho` arrays."""
-    lnT, lnd = _profile_logs(T, Rho)
-    return eos_dt_profile_from_logs(lnT, lnd, chem_id_values, xa)
+    """Evaluate EOS across a profile.
+
+    `input_mode` selects how `T` and `Rho` are interpreted: `"value"` for
+    physical cgs values, `"log"` for natural logs, and `"log10"` for base-10
+    logs. With `output="raw"`, `results` is a `(nresults, nzones)` array whose
+    row order is `EOS_RESULT_NAMES`.
+    """
+    _prepare_mesa_cache_env()
+    mode_value = _profile_input_mode(input_mode)
+    T_array, Rho_array, chem_id_array, xa_array = _prepare_profile_arrays(
+        T, Rho, chem_id_values, xa,
+        input_mode=mode_value, first_name="T", second_name="Rho",
+    )
+
+    mesa_eos = _load_mesa_extension("_mesa_eos")
+    values = mesa_eos.mesa_eos_profile(
+        chem_id_array, mode_value, T_array, Rho_array, xa_array
+    )
+    out_T, out_Rho, res, ierr, failed_zone = values
+    if int(ierr) != 0:
+        raise RuntimeError(
+            "MESA EOS profile call failed with "
+            f"ierr={int(ierr)} at zone={int(failed_zone)}"
+        )
+
+    return _eos_profile_output(out_T, out_Rho, res, T_array.size, output)
 
 
 def eos_dt_profile_from_logs(
@@ -303,59 +519,21 @@ def eos_dt_profile_from_logs(
     lnd: Iterable[float],
     chem_id_values: Iterable[int],
     xa: object,
+    *,
+    output: str = "dict",
 ) -> dict[str, object]:
-    """Evaluate EOS across a profile whose inputs are MESA natural-log columns.
-
-    Inputs `lnT` and `lnd` are the saved-model natural logs of temperature and
-    density. `xa` must have shape `(species, nzones)`. The Fortran wrapper
-    reconstructs `T = exp(lnT)` and `Rho = exp(lnd)` inside the EOS loop.
-    """
-    _prepare_mesa_cache_env()
-    lnT_array, lnd_array, chem_id_array, xa_array = _prepare_profile_arrays(
-        lnT,
-        lnd,
-        chem_id_values,
-        xa,
-    )
-
-    mesa_eos = _load_mesa_extension("_mesa_eos")
-    values = mesa_eos.mesa_eos_profile_from_logs(
-        chem_id_array,
-        lnT_array,
-        lnd_array,
-        xa_array,
-    )
-    T, Rho, res, ierr, failed_zone = values
-    if int(ierr) != 0:
-        raise RuntimeError(
-            "MESA EOS profile call failed with "
-            f"ierr={int(ierr)} at zone={int(failed_zone)}"
-        )
-
-    result_array = np.asarray(res, dtype=np.float64)
-    if result_array.shape != (len(EOS_RESULT_NAMES), lnT_array.size):
-        raise RuntimeError(
-            "MESA EOS profile wrapper returned result shape "
-            f"{result_array.shape}; expected "
-            f"({len(EOS_RESULT_NAMES)}, {lnT_array.size})"
-        )
-
-    return {
-        "T": np.asarray(T, dtype=np.float64),
-        "Rho": np.asarray(Rho, dtype=np.float64),
-        "results": {
-            name: result_array[index, :].copy()
-            for index, name in enumerate(EOS_RESULT_NAMES)
-        },
-    }
+    """Compatibility alias for `eos_dt_profile(..., input_mode="log")`."""
+    return eos_dt_profile(lnT, lnd, chem_id_values, xa, input_mode="log", output=output)
 
 
+@_timed_api("kap.opacity_profile")
 def kap_opacity_profile(
     T: Iterable[float],
     Rho: Iterable[float],
     chem_id_values: Iterable[int],
     xa: object,
     *,
+    input_mode: str | int = "value",
     use_type2: bool | None = None,
     zbase: float | None = None,
     use_zbase_for_type1: bool | None = None,
@@ -364,48 +542,16 @@ def kap_opacity_profile(
     type2_full_off_dZ: float | None = None,
     type2_full_on_dZ: float | None = None,
 ) -> dict[str, object]:
-    """Evaluate KAP across a profile using `T` and `Rho` arrays."""
-    lnT, lnd = _profile_logs(T, Rho)
-    return kap_opacity_profile_from_logs(
-        lnT,
-        lnd,
-        chem_id_values,
-        xa,
-        use_type2=use_type2,
-        zbase=zbase,
-        use_zbase_for_type1=use_zbase_for_type1,
-        type2_full_off_X=type2_full_off_X,
-        type2_full_on_X=type2_full_on_X,
-        type2_full_off_dZ=type2_full_off_dZ,
-        type2_full_on_dZ=type2_full_on_dZ,
-    )
+    """Evaluate KAP across a profile.
 
-
-def kap_opacity_profile_from_logs(
-    lnT: Iterable[float],
-    lnd: Iterable[float],
-    chem_id_values: Iterable[int],
-    xa: object,
-    *,
-    use_type2: bool | None = None,
-    zbase: float | None = None,
-    use_zbase_for_type1: bool | None = None,
-    type2_full_off_X: float | None = None,
-    type2_full_on_X: float | None = None,
-    type2_full_off_dZ: float | None = None,
-    type2_full_on_dZ: float | None = None,
-) -> dict[str, object]:
-    """Evaluate KAP across a saved-model style profile.
-
-    The KAP wrapper calls EOS internally for the electron quantities required
-    by `kap_get`, then evaluates opacity for each profile zone.
+    `input_mode` selects physical values (`"value"`), natural logs (`"log"`),
+    or base-10 logs (`"log10"`) for `T` and `Rho`.
     """
     _prepare_mesa_cache_env()
-    lnT_array, lnd_array, chem_id_array, xa_array = _prepare_profile_arrays(
-        lnT,
-        lnd,
-        chem_id_values,
-        xa,
+    mode_value = _profile_input_mode(input_mode)
+    T_array, Rho_array, chem_id_array, xa_array = _prepare_profile_arrays(
+        T, Rho, chem_id_values, xa,
+        input_mode=mode_value, first_name="T", second_name="Rho",
     )
     controls = _kap_control_args(
         use_type2=use_type2,
@@ -418,12 +564,8 @@ def kap_opacity_profile_from_logs(
     )
 
     mesa_kap = _load_mesa_extension("_mesa_kap")
-    values = mesa_kap.mesa_kap_profile_from_logs(
-        chem_id_array,
-        lnT_array,
-        lnd_array,
-        xa_array,
-        *controls,
+    values = mesa_kap.mesa_kap_profile(
+        chem_id_array, mode_value, T_array, Rho_array, xa_array, *controls
     )
     T, Rho, kappa, dlnkap_dlnRho, dlnkap_dlnT, ierr, failed_zone = values
     if int(ierr) != 0:
@@ -441,38 +583,7 @@ def kap_opacity_profile_from_logs(
     }
 
 
-def eos_kap_profile(
-    T: Iterable[float],
-    Rho: Iterable[float],
-    chem_id_values: Iterable[int],
-    xa: object,
-    *,
-    use_type2: bool | None = None,
-    zbase: float | None = None,
-    use_zbase_for_type1: bool | None = None,
-    type2_full_off_X: float | None = None,
-    type2_full_on_X: float | None = None,
-    type2_full_off_dZ: float | None = None,
-    type2_full_on_dZ: float | None = None,
-) -> dict[str, object]:
-    """Evaluate EOS and KAP across a profile using `T` and `Rho` arrays."""
-    lnT, lnd = _profile_logs(T, Rho)
-    return eos_kap_profile_from_logs(
-        lnT,
-        lnd,
-        chem_id_values,
-        xa,
-        use_type2=use_type2,
-        zbase=zbase,
-        use_zbase_for_type1=use_zbase_for_type1,
-        type2_full_off_X=type2_full_off_X,
-        type2_full_on_X=type2_full_on_X,
-        type2_full_off_dZ=type2_full_off_dZ,
-        type2_full_on_dZ=type2_full_on_dZ,
-    )
-
-
-def eos_kap_profile_from_logs(
+def kap_opacity_profile_from_logs(
     lnT: Iterable[float],
     lnd: Iterable[float],
     chem_id_values: Iterable[int],
@@ -486,13 +597,46 @@ def eos_kap_profile_from_logs(
     type2_full_off_dZ: float | None = None,
     type2_full_on_dZ: float | None = None,
 ) -> dict[str, object]:
-    """Evaluate EOS and KAP across a profile with one EOS call per zone."""
-    _prepare_mesa_cache_env()
-    lnT_array, lnd_array, chem_id_array, xa_array = _prepare_profile_arrays(
+    """Compatibility alias for `kap_opacity_profile(..., input_mode="log")`."""
+    return kap_opacity_profile(
         lnT,
         lnd,
         chem_id_values,
         xa,
+        input_mode="log",
+        use_type2=use_type2,
+        zbase=zbase,
+        use_zbase_for_type1=use_zbase_for_type1,
+        type2_full_off_X=type2_full_off_X,
+        type2_full_on_X=type2_full_on_X,
+        type2_full_off_dZ=type2_full_off_dZ,
+        type2_full_on_dZ=type2_full_on_dZ,
+    )
+
+
+@_timed_api("kap.eos_kap_profile")
+def eos_kap_profile(
+    T: Iterable[float],
+    Rho: Iterable[float],
+    chem_id_values: Iterable[int],
+    xa: object,
+    *,
+    input_mode: str | int = "value",
+    output: str = "raw",
+    use_type2: bool | None = None,
+    zbase: float | None = None,
+    use_zbase_for_type1: bool | None = None,
+    type2_full_off_X: float | None = None,
+    type2_full_on_X: float | None = None,
+    type2_full_off_dZ: float | None = None,
+    type2_full_on_dZ: float | None = None,
+) -> dict[str, object]:
+    """Evaluate EOS and KAP across a profile with one EOS call per zone."""
+    _prepare_mesa_cache_env()
+    mode_value = _profile_input_mode(input_mode)
+    T_array, Rho_array, chem_id_array, xa_array = _prepare_profile_arrays(
+        T, Rho, chem_id_values, xa,
+        input_mode=mode_value, first_name="T", second_name="Rho",
     )
     controls = _kap_control_args(
         use_type2=use_type2,
@@ -505,12 +649,8 @@ def eos_kap_profile_from_logs(
     )
 
     mesa_kap = _load_mesa_extension("_mesa_kap")
-    values = mesa_kap.mesa_eos_kap_profile_from_logs(
-        chem_id_array,
-        lnT_array,
-        lnd_array,
-        xa_array,
-        *controls,
+    values = mesa_kap.mesa_eos_kap_profile(
+        chem_id_array, mode_value, T_array, Rho_array, xa_array, *controls
     )
     (
         T,
@@ -528,27 +668,45 @@ def eos_kap_profile_from_logs(
             f"ierr={int(ierr)} at zone={int(failed_zone)}"
         )
 
-    result_array = np.asarray(res, dtype=np.float64)
-    if result_array.shape != (len(EOS_RESULT_NAMES), lnT_array.size):
-        raise RuntimeError(
-            "MESA EOS/KAP profile wrapper returned EOS result shape "
-            f"{result_array.shape}; expected "
-            f"({len(EOS_RESULT_NAMES)}, {lnT_array.size})"
-        )
-
-    return {
-        "T": np.asarray(T, dtype=np.float64),
-        "Rho": np.asarray(Rho, dtype=np.float64),
-        "results": {
-            name: result_array[index, :].copy()
-            for index, name in enumerate(EOS_RESULT_NAMES)
-        },
-        "kappa": np.asarray(kappa, dtype=np.float64),
-        "dlnkap_dlnRho": np.asarray(dlnkap_dlnRho, dtype=np.float64),
-        "dlnkap_dlnT": np.asarray(dlnkap_dlnT, dtype=np.float64),
-    }
+    return _eos_kap_profile_output(
+        T, Rho, res, kappa, dlnkap_dlnRho, dlnkap_dlnT, T_array.size, output
+    )
 
 
+def eos_kap_profile_from_logs(
+    lnT: Iterable[float],
+    lnd: Iterable[float],
+    chem_id_values: Iterable[int],
+    xa: object,
+    *,
+    output: str = "dict",
+    use_type2: bool | None = None,
+    zbase: float | None = None,
+    use_zbase_for_type1: bool | None = None,
+    type2_full_off_X: float | None = None,
+    type2_full_on_X: float | None = None,
+    type2_full_off_dZ: float | None = None,
+    type2_full_on_dZ: float | None = None,
+) -> dict[str, object]:
+    """Compatibility alias for `eos_kap_profile(..., input_mode="log")`."""
+    return eos_kap_profile(
+        lnT,
+        lnd,
+        chem_id_values,
+        xa,
+        input_mode="log",
+        output=output,
+        use_type2=use_type2,
+        zbase=zbase,
+        use_zbase_for_type1=use_zbase_for_type1,
+        type2_full_off_X=type2_full_off_X,
+        type2_full_on_X=type2_full_on_X,
+        type2_full_off_dZ=type2_full_off_dZ,
+        type2_full_on_dZ=type2_full_on_dZ,
+    )
+
+
+@_timed_api("eos.solve_rho")
 def eos_solve_rho(
     T: float,
     other: str | int,
@@ -568,10 +726,11 @@ def eos_solve_rho(
     """
     _prepare_mesa_cache_env()
     composition_data = _prepare_composition(comp)
+    other_index = _eos_result_index(other)
     mesa_eos = _load_mesa_extension("_mesa_eos")
     values = mesa_eos.mesa_eos_solve_rho(
         float(T),
-        _eos_result_index(other),
+        other_index,
         float(other_value),
         float(Rho_guess),
         composition_data.chem_id,
@@ -582,13 +741,7 @@ def eos_solve_rho(
     )
     rho_result, log_rho, res, d_dlnRho, d_dlnT, d_dxa, eos_calls, ierr = values
     _check_ierr("MESA EOS solve rho", ierr)
-    output = _eos_full_output_dict(
-        composition_data,
-        res,
-        d_dlnRho,
-        d_dlnT,
-        d_dxa,
-    )
+    output = _eos_full_output_dict(composition_data, res, d_dlnRho, d_dlnT, d_dxa)
     return {
         "Rho": float(rho_result),
         "logRho": float(log_rho),
@@ -597,6 +750,7 @@ def eos_solve_rho(
     }
 
 
+@_timed_api("eos.solve_t")
 def eos_solve_t(
     Rho: float,
     other: str | int,
@@ -616,10 +770,11 @@ def eos_solve_t(
     """
     _prepare_mesa_cache_env()
     composition_data = _prepare_composition(comp)
+    other_index = _eos_result_index(other)
     mesa_eos = _load_mesa_extension("_mesa_eos")
     values = mesa_eos.mesa_eos_solve_t(
         float(Rho),
-        _eos_result_index(other),
+        other_index,
         float(other_value),
         float(T_guess),
         composition_data.chem_id,
@@ -630,13 +785,7 @@ def eos_solve_t(
     )
     T_result, log_T, res, d_dlnRho, d_dlnT, d_dxa, eos_calls, ierr = values
     _check_ierr("MESA EOS solve T", ierr)
-    output = _eos_full_output_dict(
-        composition_data,
-        res,
-        d_dlnRho,
-        d_dlnT,
-        d_dxa,
-    )
+    output = _eos_full_output_dict(composition_data, res, d_dlnRho, d_dlnT, d_dxa)
     return {
         "T": float(T_result),
         "logT": float(log_T),
@@ -646,6 +795,127 @@ def eos_solve_t(
 
 
 eos_solve_T = eos_solve_t
+
+
+@_timed_api("eos.solve_rho_profile")
+def eos_solve_rho_profile(
+    T: Iterable[float],
+    other: str | int,
+    other_value: Iterable[float] | float,
+    Rho_guess: Iterable[float] | float,
+    chem_id_values: Iterable[int],
+    xa: object,
+    *,
+    input_mode: str | int = "value",
+    logRho_tol: float = 1.0e-10,
+    other_tol: float = 1.0e-10,
+    max_iter: int = 100,
+) -> dict[str, object]:
+    """Solve for density across a profile using `eosDT_get_Rho`.
+
+    `input_mode` applies to the known `T` array only. `Rho_guess` is always a
+    physical cgs density and may be scalar or length `nzones`.
+    """
+    _prepare_mesa_cache_env()
+    mode_value = _profile_input_mode(input_mode)
+    other_index = _eos_result_index(other)
+    T_array, chem_id_array, xa_array = _prepare_profile_coordinate(
+        T, chem_id_values, xa, input_mode=mode_value, name="T"
+    )
+    other_value_array = _profile_value_array(other_value, T_array.size, "other_value")
+    Rho_guess_array = _profile_value_array(
+        Rho_guess, T_array.size, "Rho_guess", positive=True
+    )
+
+    mesa_eos = _load_mesa_extension("_mesa_eos")
+    values = mesa_eos.mesa_eos_solve_rho_profile(
+        chem_id_array, mode_value, T_array, other_index,
+        other_value_array, Rho_guess_array, xa_array,
+        float(logRho_tol), float(other_tol), int(max_iter),
+    )
+    (
+        rho_result,
+        log_rho,
+        res,
+        d_dlnRho,
+        d_dlnT,
+        d_dxa,
+        eos_calls,
+        ierr,
+        failed_zone,
+    ) = values
+    if int(ierr) != 0:
+        raise RuntimeError(
+            "MESA EOS solve rho profile call failed with "
+            f"ierr={int(ierr)} at zone={int(failed_zone)}"
+        )
+
+    return _eos_solve_profile_output(
+        "Rho", "logRho", rho_result, log_rho, res, d_dlnRho, d_dlnT, d_dxa,
+        eos_calls, T_array.size, chem_id_array.size,
+    )
+
+
+@_timed_api("eos.solve_t_profile")
+def eos_solve_t_profile(
+    Rho: Iterable[float],
+    other: str | int,
+    other_value: Iterable[float] | float,
+    T_guess: Iterable[float] | float,
+    chem_id_values: Iterable[int],
+    xa: object,
+    *,
+    input_mode: str | int = "value",
+    logT_tol: float = 1.0e-10,
+    other_tol: float = 1.0e-10,
+    max_iter: int = 100,
+) -> dict[str, object]:
+    """Solve for temperature across a profile using `eosDT_get_T`.
+
+    `input_mode` applies to the known `Rho` array only. `T_guess` is always a
+    physical temperature in K and may be scalar or length `nzones`.
+    """
+    _prepare_mesa_cache_env()
+    mode_value = _profile_input_mode(input_mode)
+    other_index = _eos_result_index(other)
+    Rho_array, chem_id_array, xa_array = _prepare_profile_coordinate(
+        Rho, chem_id_values, xa, input_mode=mode_value, name="Rho"
+    )
+    other_value_array = _profile_value_array(other_value, Rho_array.size, "other_value")
+    T_guess_array = _profile_value_array(
+        T_guess, Rho_array.size, "T_guess", positive=True
+    )
+
+    mesa_eos = _load_mesa_extension("_mesa_eos")
+    values = mesa_eos.mesa_eos_solve_t_profile(
+        chem_id_array, mode_value, Rho_array, other_index,
+        other_value_array, T_guess_array, xa_array,
+        float(logT_tol), float(other_tol), int(max_iter),
+    )
+    (
+        T_result,
+        log_T,
+        res,
+        d_dlnRho,
+        d_dlnT,
+        d_dxa,
+        eos_calls,
+        ierr,
+        failed_zone,
+    ) = values
+    if int(ierr) != 0:
+        raise RuntimeError(
+            "MESA EOS solve T profile call failed with "
+            f"ierr={int(ierr)} at zone={int(failed_zone)}"
+        )
+
+    return _eos_solve_profile_output(
+        "T", "logT", T_result, log_T, res, d_dlnRho, d_dlnT, d_dxa,
+        eos_calls, Rho_array.size, chem_id_array.size,
+    )
+
+
+eos_solve_T_profile = eos_solve_t_profile
 
 
 def _kap_control_args(
@@ -694,6 +964,7 @@ def _bool_control_mode(
     return int(bool(value))
 
 
+@_timed_api("kap.opacity")
 def kap_opacity(
     T: float,
     Rho: float,
@@ -716,7 +987,6 @@ def kap_opacity(
     """
     _prepare_mesa_cache_env()
     composition_data = _prepare_composition(comp)
-    mesa_kap = _load_mesa_extension("_mesa_kap")
     controls = _kap_control_args(
         use_type2=use_type2,
         zbase=zbase,
@@ -726,6 +996,7 @@ def kap_opacity(
         type2_full_off_dZ=type2_full_off_dZ,
         type2_full_on_dZ=type2_full_on_dZ,
     )
+    mesa_kap = _load_mesa_extension("_mesa_kap")
     values = mesa_kap.mesa_kap_composition_with_controls(
         float(T),
         float(Rho),
@@ -742,6 +1013,7 @@ def kap_opacity(
     }
 
 
+@_timed_api("kap.opacity_full")
 def kap_opacity_full(
     T: float,
     Rho: float,
@@ -763,7 +1035,6 @@ def kap_opacity_full(
     """
     _prepare_mesa_cache_env()
     composition_data = _prepare_composition(comp)
-    mesa_kap = _load_mesa_extension("_mesa_kap")
     controls = _kap_control_args(
         use_type2=use_type2,
         zbase=zbase,
@@ -773,6 +1044,7 @@ def kap_opacity_full(
         type2_full_off_dZ=type2_full_off_dZ,
         type2_full_on_dZ=type2_full_on_dZ,
     )
+    mesa_kap = _load_mesa_extension("_mesa_kap")
     values = mesa_kap.mesa_kap_composition_full_with_controls(
         float(T),
         float(Rho),
@@ -846,9 +1118,19 @@ class Eos:
         Rho: Iterable[float],
         chem_id_values: Iterable[int],
         xa: object,
+        *,
+        input_mode: str | int = "value",
+        output: str = "raw",
     ) -> dict[str, object]:
-        """Evaluate EOS across a profile using `T` and `Rho` arrays."""
-        return eos_dt_profile(T, Rho, chem_id_values, xa)
+        """Evaluate EOS across a profile."""
+        return eos_dt_profile(
+            T,
+            Rho,
+            chem_id_values,
+            xa,
+            input_mode=input_mode,
+            output=output,
+        )
 
     def dt_profile_from_logs(
         self,
@@ -856,9 +1138,17 @@ class Eos:
         lnd: Iterable[float],
         chem_id_values: Iterable[int],
         xa: object,
+        *,
+        output: str = "dict",
     ) -> dict[str, object]:
         """Evaluate EOS across a saved-model style profile."""
-        return eos_dt_profile_from_logs(lnT, lnd, chem_id_values, xa)
+        return eos_dt_profile_from_logs(
+            lnT,
+            lnd,
+            chem_id_values,
+            xa,
+            output=output,
+        )
 
     def solve_rho(
         self,
@@ -909,6 +1199,64 @@ class Eos:
         )
 
     solve_T = solve_t
+
+    def solve_rho_profile(
+        self,
+        T: Iterable[float],
+        other: str | int,
+        other_value: Iterable[float] | float,
+        Rho_guess: Iterable[float] | float,
+        chem_id_values: Iterable[int],
+        xa: object,
+        *,
+        input_mode: str | int = "value",
+        logRho_tol: float = 1.0e-10,
+        other_tol: float = 1.0e-10,
+        max_iter: int = 100,
+    ) -> dict[str, object]:
+        """Solve for density across a profile."""
+        return eos_solve_rho_profile(
+            T,
+            other,
+            other_value,
+            Rho_guess,
+            chem_id_values,
+            xa,
+            input_mode=input_mode,
+            logRho_tol=logRho_tol,
+            other_tol=other_tol,
+            max_iter=max_iter,
+        )
+
+    def solve_t_profile(
+        self,
+        Rho: Iterable[float],
+        other: str | int,
+        other_value: Iterable[float] | float,
+        T_guess: Iterable[float] | float,
+        chem_id_values: Iterable[int],
+        xa: object,
+        *,
+        input_mode: str | int = "value",
+        logT_tol: float = 1.0e-10,
+        other_tol: float = 1.0e-10,
+        max_iter: int = 100,
+    ) -> dict[str, object]:
+        """Solve for temperature across a profile."""
+        return eos_solve_t_profile(
+            Rho,
+            other,
+            other_value,
+            T_guess,
+            chem_id_values,
+            xa,
+            input_mode=input_mode,
+            logT_tol=logT_tol,
+            other_tol=other_tol,
+            max_iter=max_iter,
+        )
+
+    solve_T_profile = solve_t_profile
 
 
 class Kap:
@@ -964,13 +1312,16 @@ class Kap:
         Rho: Iterable[float],
         chem_id_values: Iterable[int],
         xa: object,
+        *,
+        input_mode: str | int = "value",
     ) -> dict[str, object]:
-        """Evaluate opacity across a profile using `T` and `Rho` arrays."""
+        """Evaluate opacity across a profile."""
         return kap_opacity_profile(
             T,
             Rho,
             chem_id_values,
             xa,
+            input_mode=input_mode,
             **self._controls,
         )
 
@@ -996,13 +1347,18 @@ class Kap:
         Rho: Iterable[float],
         chem_id_values: Iterable[int],
         xa: object,
+        *,
+        input_mode: str | int = "value",
+        output: str = "raw",
     ) -> dict[str, object]:
-        """Evaluate EOS and opacity across a profile using `T` and `Rho` arrays."""
+        """Evaluate EOS and opacity across a profile."""
         return eos_kap_profile(
             T,
             Rho,
             chem_id_values,
             xa,
+            input_mode=input_mode,
+            output=output,
             **self._controls,
         )
 
@@ -1012,6 +1368,8 @@ class Kap:
         lnd: Iterable[float],
         chem_id_values: Iterable[int],
         xa: object,
+        *,
+        output: str = "dict",
     ) -> dict[str, object]:
         """Evaluate EOS and opacity across a saved-model style profile."""
         return eos_kap_profile_from_logs(
@@ -1019,6 +1377,7 @@ class Kap:
             lnd,
             chem_id_values,
             xa,
+            output=output,
             **self._controls,
         )
 
@@ -1038,6 +1397,8 @@ __all__ = [
     "composition",
     "composition_info",
     "constants",
+    "disable_timing",
+    "enable_timing",
     "eos_dt",
     "eos_dt_full",
     "eos_dt_profile",
@@ -1045,8 +1406,12 @@ __all__ = [
     "eos_kap_profile",
     "eos_dt_profile_from_logs",
     "eos_solve_T",
+    "eos_solve_T_profile",
     "eos_solve_rho",
+    "eos_solve_rho_profile",
     "eos_solve_t",
+    "eos_solve_t_profile",
+    "format_timing_summary",
     "iso_id",
     "iso_ids",
     "isotope_index",
@@ -1054,8 +1419,18 @@ __all__ = [
     "kap_opacity_full",
     "kap_opacity_profile",
     "kap_opacity_profile_from_logs",
+    "format_output_schema",
+    "output_columns",
+    "output_schema",
+    "output_schema_names",
+    "print_output_schema",
+    "print_timing_summary",
+    "reset_timing",
     "sample_composition",
     "set_cache_root",
     "set_inlist",
     "shutdown",
+    "timing",
+    "timing_enabled",
+    "timing_summary",
 ]

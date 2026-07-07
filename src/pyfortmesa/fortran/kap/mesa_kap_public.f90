@@ -589,14 +589,14 @@ subroutine mesa_kap_composition_full_with_controls( &
 end subroutine mesa_kap_composition_full_with_controls
 
 
-subroutine mesa_kap_profile_from_logs( &
-      nzones, species, chem_id_values, lnT, lnd, xa, &
+subroutine mesa_kap_profile( &
+      nzones, species, chem_id_values, input_mode, input_T, input_Rho, xa, &
       use_type2_mode, zbase, use_zbase_for_type1_mode, &
       type2_full_off_x, type2_full_on_x, &
       type2_full_off_dz, type2_full_on_dz, &
       T, Rho, kappa, dlnkap_dlnRho, dlnkap_dlnT, ierr, failed_zone)
    use chem_def, only: num_chem_isos
-   use const_def, only: dp, iln10
+   use const_def, only: dp
    use eos_def, only: i_eta, i_lnfree_e, num_eos_basic_results, &
       num_eos_d_dxa_results
    use eos_lib, only: eosDT_get
@@ -604,14 +604,16 @@ subroutine mesa_kap_profile_from_logs( &
    use kap_lib, only: kap_get
    use pyfortmesa_kap_state, only: apply_kap_controls, ensure_kap_handles, &
       setup_net_iso
+   use pyfortmesa_profile_inputs, only: profile_state_from_input
 
    implicit none
 
    integer, intent(in) :: nzones
    integer, intent(in) :: species
    integer, intent(in) :: chem_id_values(species)
-   real(dp), intent(in) :: lnT(nzones)
-   real(dp), intent(in) :: lnd(nzones)
+   integer, intent(in) :: input_mode
+   real(dp), intent(in) :: input_T(nzones)
+   real(dp), intent(in) :: input_Rho(nzones)
    real(dp), intent(in) :: xa(species, nzones)
    integer, intent(in) :: use_type2_mode
    real(dp), intent(in) :: zbase
@@ -706,42 +708,81 @@ contains
       real(dp) :: d_dxa(num_eos_d_dxa_results, species)
       real(dp) :: kap_fracs(num_kap_fracs)
       real(dp) :: dlnkap_dxa(species)
+      real(dp) :: logT
+      real(dp) :: logRho
 
       op_err = 0
-      T(k) = exp(lnT(k))
-      Rho(k) = exp(lnd(k))
-
-      if (T(k) <= 0.0_dp .or. Rho(k) <= 0.0_dp) then
-         op_err = -9
-         return
-      end if
+      call profile_state_from_input(input_mode, input_T(k), input_Rho(k), &
+         T(k), Rho(k), logT, logRho, op_err)
+      if (op_err /= 0) return
 
       call eosDT_get( &
          eos_handle, species, chem_id, net_iso, xa(:, k), &
-         Rho(k), lnd(k)*iln10, T(k), lnT(k)*iln10, &
+         Rho(k), logRho, T(k), logT, &
          res, d_dlnd, d_dlnT, d_dxa, op_err)
       if (op_err /= 0) return
 
       call kap_get( &
          kap_handle, species, chem_id, net_iso, xa(:, k), &
-         lnd(k)*iln10, lnT(k)*iln10, &
+         logRho, logT, &
          res(i_lnfree_e), d_dlnd(i_lnfree_e), d_dlnT(i_lnfree_e), &
          res(i_eta), d_dlnd(i_eta), d_dlnT(i_eta), &
          kap_fracs, kappa(k), dlnkap_dlnRho(k), dlnkap_dlnT(k), &
          dlnkap_dxa, op_err)
    end subroutine do_profile_zone
 
+end subroutine mesa_kap_profile
+
+
+subroutine mesa_kap_profile_from_logs( &
+      nzones, species, chem_id_values, lnT, lnd, xa, &
+      use_type2_mode, zbase, use_zbase_for_type1_mode, &
+      type2_full_off_x, type2_full_on_x, &
+      type2_full_off_dz, type2_full_on_dz, &
+      T, Rho, kappa, dlnkap_dlnRho, dlnkap_dlnT, ierr, failed_zone)
+   use const_def, only: dp
+   use pyfortmesa_profile_inputs, only: profile_input_log
+
+   implicit none
+
+   integer, intent(in) :: nzones
+   integer, intent(in) :: species
+   integer, intent(in) :: chem_id_values(species)
+   real(dp), intent(in) :: lnT(nzones)
+   real(dp), intent(in) :: lnd(nzones)
+   real(dp), intent(in) :: xa(species, nzones)
+   integer, intent(in) :: use_type2_mode
+   real(dp), intent(in) :: zbase
+   integer, intent(in) :: use_zbase_for_type1_mode
+   real(dp), intent(in) :: type2_full_off_x
+   real(dp), intent(in) :: type2_full_on_x
+   real(dp), intent(in) :: type2_full_off_dz
+   real(dp), intent(in) :: type2_full_on_dz
+   real(dp), intent(out) :: T(nzones)
+   real(dp), intent(out) :: Rho(nzones)
+   real(dp), intent(out) :: kappa(nzones)
+   real(dp), intent(out) :: dlnkap_dlnRho(nzones)
+   real(dp), intent(out) :: dlnkap_dlnT(nzones)
+   integer, intent(out) :: ierr
+   integer, intent(out) :: failed_zone
+
+   call mesa_kap_profile(nzones, species, chem_id_values, profile_input_log, &
+      lnT, lnd, xa, use_type2_mode, zbase, use_zbase_for_type1_mode, &
+      type2_full_off_x, type2_full_on_x, type2_full_off_dz, &
+      type2_full_on_dz, T, Rho, kappa, dlnkap_dlnRho, dlnkap_dlnT, ierr, &
+      failed_zone)
+
 end subroutine mesa_kap_profile_from_logs
 
 
-subroutine mesa_eos_kap_profile_from_logs( &
-      nzones, species, chem_id_values, lnT, lnd, xa, &
+subroutine mesa_eos_kap_profile( &
+      nzones, species, chem_id_values, input_mode, input_T, input_Rho, xa, &
       use_type2_mode, zbase, use_zbase_for_type1_mode, &
       type2_full_off_x, type2_full_on_x, &
       type2_full_off_dz, type2_full_on_dz, &
       T, Rho, res, kappa, dlnkap_dlnRho, dlnkap_dlnT, ierr, failed_zone)
    use chem_def, only: num_chem_isos
-   use const_def, only: dp, iln10
+   use const_def, only: dp
    use eos_def, only: i_eta, i_lnfree_e, num_eos_basic_results, &
       num_eos_d_dxa_results
    use eos_lib, only: eosDT_get
@@ -749,6 +790,7 @@ subroutine mesa_eos_kap_profile_from_logs( &
    use kap_lib, only: kap_get
    use pyfortmesa_kap_state, only: apply_kap_controls, ensure_kap_handles, &
       setup_net_iso
+   use pyfortmesa_profile_inputs, only: profile_state_from_input
 
    implicit none
 
@@ -757,8 +799,9 @@ subroutine mesa_eos_kap_profile_from_logs( &
    integer, intent(in) :: nzones
    integer, intent(in) :: species
    integer, intent(in) :: chem_id_values(species)
-   real(dp), intent(in) :: lnT(nzones)
-   real(dp), intent(in) :: lnd(nzones)
+   integer, intent(in) :: input_mode
+   real(dp), intent(in) :: input_T(nzones)
+   real(dp), intent(in) :: input_Rho(nzones)
    real(dp), intent(in) :: xa(species, nzones)
    integer, intent(in) :: use_type2_mode
    real(dp), intent(in) :: zbase
@@ -860,25 +903,23 @@ contains
       real(dp) :: d_dxa(num_eos_d_dxa_results, species)
       real(dp) :: kap_fracs(num_kap_fracs)
       real(dp) :: dlnkap_dxa(species)
+      real(dp) :: logT
+      real(dp) :: logRho
 
       op_err = 0
-      T(k) = exp(lnT(k))
-      Rho(k) = exp(lnd(k))
-
-      if (T(k) <= 0.0_dp .or. Rho(k) <= 0.0_dp) then
-         op_err = -9
-         return
-      end if
+      call profile_state_from_input(input_mode, input_T(k), input_Rho(k), &
+         T(k), Rho(k), logT, logRho, op_err)
+      if (op_err /= 0) return
 
       call eosDT_get( &
          eos_handle, species, chem_id, net_iso, xa(:, k), &
-         Rho(k), lnd(k)*iln10, T(k), lnT(k)*iln10, &
+         Rho(k), logRho, T(k), logT, &
          eos_res, d_dlnd, d_dlnT, d_dxa, op_err)
       if (op_err /= 0) return
 
       call kap_get( &
          kap_handle, species, chem_id, net_iso, xa(:, k), &
-         lnd(k)*iln10, lnT(k)*iln10, &
+         logRho, logT, &
          eos_res(i_lnfree_e), d_dlnd(i_lnfree_e), d_dlnT(i_lnfree_e), &
          eos_res(i_eta), d_dlnd(i_eta), d_dlnT(i_eta), &
          kap_fracs, kappa(k), dlnkap_dlnRho(k), dlnkap_dlnT(k), &
@@ -887,6 +928,50 @@ contains
 
       res(:, k) = eos_res(:)
    end subroutine do_profile_zone
+
+end subroutine mesa_eos_kap_profile
+
+
+subroutine mesa_eos_kap_profile_from_logs( &
+      nzones, species, chem_id_values, lnT, lnd, xa, &
+      use_type2_mode, zbase, use_zbase_for_type1_mode, &
+      type2_full_off_x, type2_full_on_x, &
+      type2_full_off_dz, type2_full_on_dz, &
+      T, Rho, res, kappa, dlnkap_dlnRho, dlnkap_dlnT, ierr, failed_zone)
+   use const_def, only: dp
+   use pyfortmesa_profile_inputs, only: profile_input_log
+
+   implicit none
+
+   integer, parameter :: py_num_eos_basic_results = 26
+
+   integer, intent(in) :: nzones
+   integer, intent(in) :: species
+   integer, intent(in) :: chem_id_values(species)
+   real(dp), intent(in) :: lnT(nzones)
+   real(dp), intent(in) :: lnd(nzones)
+   real(dp), intent(in) :: xa(species, nzones)
+   integer, intent(in) :: use_type2_mode
+   real(dp), intent(in) :: zbase
+   integer, intent(in) :: use_zbase_for_type1_mode
+   real(dp), intent(in) :: type2_full_off_x
+   real(dp), intent(in) :: type2_full_on_x
+   real(dp), intent(in) :: type2_full_off_dz
+   real(dp), intent(in) :: type2_full_on_dz
+   real(dp), intent(out) :: T(nzones)
+   real(dp), intent(out) :: Rho(nzones)
+   real(dp), intent(out) :: res(py_num_eos_basic_results, nzones)
+   real(dp), intent(out) :: kappa(nzones)
+   real(dp), intent(out) :: dlnkap_dlnRho(nzones)
+   real(dp), intent(out) :: dlnkap_dlnT(nzones)
+   integer, intent(out) :: ierr
+   integer, intent(out) :: failed_zone
+
+   call mesa_eos_kap_profile(nzones, species, chem_id_values, &
+      profile_input_log, lnT, lnd, xa, use_type2_mode, zbase, &
+      use_zbase_for_type1_mode, type2_full_off_x, type2_full_on_x, &
+      type2_full_off_dz, type2_full_on_dz, T, Rho, res, kappa, &
+      dlnkap_dlnRho, dlnkap_dlnT, ierr, failed_zone)
 
 end subroutine mesa_eos_kap_profile_from_logs
 

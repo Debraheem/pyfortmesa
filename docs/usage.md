@@ -63,6 +63,10 @@ print("kap Type2 fractions:", kap_type2_output["kap_fracs"])
 mesa.shutdown()
 ```
 
+`mix` is a scalar-call composition object. It stores the isotope names, matching
+MESA `chem_id` values, and one mass-fraction vector. Scalar helpers accept it as
+`comp=mix`.
+
 Useful output fields:
 
 ```text
@@ -80,6 +84,9 @@ mesa.Eos().solve_rho(...)
 
 mesa.Eos().solve_t(...)
   T, logT, eos_calls, results, d_dlnRho, d_dlnT, d_dxa
+
+mesa.Eos().solve_rho_profile(...), mesa.Eos().solve_t_profile(...)
+  profile arrays; results has shape (n_eos_results, nzones)
 
 mesa.Kap().opacity_full(...)
   kappa, dlnkap_dlnRho, dlnkap_dlnT, kap_fracs, dlnkap_dxa
@@ -112,8 +119,10 @@ mesa.set_cache_root(".")
 mesa.set_inlist("inlist_eos_and_kap")
 
 isotope_names = ("h1", "he4", "c12")
-chem_id = mesa.iso_ids(isotope_names)
+chem_id_values = mesa.iso_ids(isotope_names)
 kap = mesa.Kap()
+i_lnPgas = mesa.EOS_RESULT_NAMES.index("lnPgas")
+i_gamma1 = mesa.EOS_RESULT_NAMES.index("gamma1")
 
 
 def profile_xa(xa_by_zone):
@@ -131,20 +140,55 @@ try:
     first_T, first_rho, first_xa_by_zone = model_profiles[0]
 
     # Optional warmup: pays table/cache/handle setup before timing a loop.
-    kap.eos_kap_profile(first_T, first_rho, chem_id, profile_xa(first_xa_by_zone))
+    kap.eos_kap_profile(first_T, first_rho, chem_id_values, profile_xa(first_xa_by_zone))
 
     for T, rho, xa_by_zone in model_profiles:
         xa = profile_xa(xa_by_zone)
 
         # combined eos+kap: one eos call per zone, then kap uses that state.
-        output = kap.eos_kap_profile(T, rho, chem_id, xa)
+        output = kap.eos_kap_profile(T, rho, chem_id_values, xa)
 
-        lnPgas = output["results"]["lnPgas"]
-        gamma1 = output["results"]["gamma1"]
+        lnPgas = output["results"][i_lnPgas, :]
+        gamma1 = output["results"][i_gamma1, :]
         kappa = output["kappa"]
 finally:
     mesa.shutdown()
 ```
+
+Profile helpers take the composition in split form: `chem_id_values` gives the
+isotope order, and `xa` gives either one fixed composition with shape
+`(species,)` or zone mass fractions with shape `(species, nzones)`.
+
+For a fixed-composition EOS profile on an arbitrary base-10 `logT`/`logRho`
+track, build one `Composition` and pass its 1D `xa` vector. Use
+`input_mode="log10"` when the arrays are base-10 logs:
+
+```python
+log_rho = np.linspace(-2.0, 8.0, 1000)
+log_T = np.linspace(3.0, 8.0, 1000)
+
+mix = mesa.composition({"h1": 0.70, "he4": 0.28, "c12": 0.02})
+
+output = mesa.Eos().dt_profile(log_T, log_rho, mix.chem_id, mix.xa, input_mode="log10")
+```
+
+For KAP profile work, choose points in a valid opacity-table region. A common
+base-10 coordinate is `logR = logRho - 3*logT + 18`:
+
+```python
+log_T = np.linspace(3.75, 8.0, 1000)
+log_R = np.full_like(log_T, -3.0)
+log_rho = log_R + 3.0*log_T - 18.0
+
+T = 10.0**log_T
+rho = 10.0**log_rho
+
+output = mesa.Kap().eos_kap_profile(T, rho, mix.chem_id, mix.xa)
+```
+
+Use `input_mode="log"` for natural-log arrays and `input_mode="log10"` for
+base-10 arrays. The older `*_from_logs(...)` helpers are compatibility aliases
+for natural-log input.
 
 Use `mesa.Eos().dt_profile(...)` when only eos is needed. Use
 `mesa.Kap().opacity_profile(...)` when only opacity is needed; that path still
@@ -152,7 +196,7 @@ calls eos internally for `lnfree_e`, `eta`, and derivatives required by
 `kap_get`. When both eos and kap are needed for the same zones,
 `mesa.Kap().eos_kap_profile(...)` is the preferred path because it avoids
 computing eos twice. The lower-level `*_from_logs(...)` variants remain
-available when the caller already has MESA-style `lnT` and `lnd` columns.
+available as compatibility aliases for MESA-style `lnT` and `lnd` columns.
 
 Keep MESA setup out of the hot loop. The first call may initialize tables and
 create cache files. That work can be much more expensive than a hot profile
@@ -237,10 +281,10 @@ tests/mesa/run_eos_from_saved_model.sh --with-mesa --thread-sweep
 tests/mesa/run_eos_from_saved_model.sh --with-mesa --thread-sweep --physics eos-kap
 ```
 
-`./test` is the normal test entrypoint for checks that do not call MESA. `./test mesa` adds the optional
-MESA checks and the saved model timing suite. Both modes store raw test
-output under `tests/test_output/`, including `test_summary.txt`,
-`tmp_golden_output.txt`, and `golden_compare.log`; set
+`./test` is the normal test entrypoint for checks that do not call MESA.
+`./test mesa` adds the optional MESA checks and the saved model timing suite.
+Both modes store raw test output under `tests/test_output/`, including
+`test_summary.txt`, `tmp_golden_output.txt`, and `golden_compare.log`; set
 `PYFORTMESA_TEST_OUTPUT_DIR` to choose a different output directory. The
 committed golden baseline for checks that do not call MESA is
 `tests/test_output/golden/quick_test_output.txt`. The MESA scripts print input
@@ -273,7 +317,8 @@ use `--thread-sweep`. The default thread counts are `1 2 4 6 8 10`:
 ```bash
 tests/mesa/run_eos_from_saved_model.sh --with-mesa --thread-sweep
 tests/mesa/run_eos_from_saved_model.sh --with-mesa --thread-sweep=1,2,4,8
-PYFORTMESA_THREAD_COUNTS="1 3 6 12" tests/mesa/run_eos_from_saved_model.sh --with-mesa --thread-sweep
+PYFORTMESA_THREAD_COUNTS="1 3 6 12" \
+  tests/mesa/run_eos_from_saved_model.sh --with-mesa --thread-sweep
 ```
 
 To time both profile paths in the same thread sweep:
@@ -288,6 +333,20 @@ The kap profile call includes its required internal eos call; it is not a pure
 `kap_get`-only timer. The `--physics eos-kap` path uses a combined Fortran
 wrapper so eos is evaluated once per zone and the same eos result feeds kap.
 
+For ad hoc overhead checks inside normal Python code, enable the package timing
+collector instead of writing an external wrapper:
+
+```python
+with mesa.timing():
+    output = mesa.Kap().eos_kap_profile(T, rho, chem_id, xa)
+
+print(mesa.format_timing_summary(sort_by="seconds"))
+```
+
+The summary records high-level pyfortmesa public calls such as
+`kap.eos_kap_profile`. It does not write files unless the caller writes the
+summary.
+
 For steady-state timings, keep MESA handles alive across repeated calls in one
 Python process:
 
@@ -295,7 +354,8 @@ Python process:
 tests/mesa/run_eos_from_saved_model.sh --with-mesa --physics eos --warmup 1 --repeat 5
 tests/mesa/run_eos_from_saved_model.sh --with-mesa --physics kap --warmup 1 --repeat 5
 tests/mesa/run_eos_from_saved_model.sh --with-mesa --physics eos-kap --warmup 1 --repeat 5
-tests/mesa/run_eos_from_saved_model.sh --with-mesa --thread-sweep --physics eos-kap --warmup 1 --repeat 5
+tests/mesa/run_eos_from_saved_model.sh --with-mesa --thread-sweep \
+  --physics eos-kap --warmup 1 --repeat 5
 ```
 
 For the standard report, use one command:
@@ -306,16 +366,17 @@ tests/mesa/run_profile_timing_suite.sh
 
 That suite runs eos, kap, combined eos+kap, and the combined eos+kap thread
 sweep, then prints compact single run, global-breakdown, and thread-sweep
-tables. It also writes the raw logs and timing JSON files under local
-`tests/test_output/` for inspection. The wrapper defaults to `warmup=1` and `repeat=5`; override those with
-`PYFORTMESA_PROFILE_WARMUP` and `PYFORTMESA_PROFILE_REPEAT`. The single run
-thread count is chosen from `PYFORTMESA_SUMMARY_THREADS`, then `OMP_NUM_THREADS`,
-then the largest sweep count.
+tables. Raw per-run logs and timing JSON are temporary by default; set
+`PYFORTMESA_PROFILE_REPORT_DIR` to keep them. The wrapper defaults to
+`warmup=1` and `repeat=5`; override those with `PYFORTMESA_PROFILE_WARMUP` and
+`PYFORTMESA_PROFILE_REPEAT`. The single run thread count is chosen from
+`PYFORTMESA_SUMMARY_THREADS`, then `OMP_NUM_THREADS`, then the largest sweep
+count.
 
 The equivalent expanded command is:
 
 ```bash
-tests/mesa/run_eos_from_saved_model.sh --with-mesa --summary suite --warmup 1 --repeat 5
+tests/mesa/run_eos_from_saved_model.sh --with-mesa --summary-suite --warmup 1 --repeat 5
 ```
 
 The call rate fields use only timed profile call seconds. Warmup, array setup,
@@ -326,7 +387,7 @@ Do not combine process parallelism with `--thread-sweep`; the runner rejects
 that combination to avoid mixing process and thread parallelism.
 
 The script prints parse time, profile wall time, call counts, calls per second,
-phase level timing, Fortran reconstruction checks, and first/middle/last sample
+public-call timing, Fortran reconstruction checks, and first/middle/last sample
 outputs. Its `.mod` comparison checks the saved model inputs: zone count,
 species count, round trip `lnT/lnd`, and mass-fraction sums. That `.mod` file
 does not contain eos result columns such as `lnPgas` or `gamma1`.

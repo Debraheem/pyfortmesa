@@ -235,6 +235,7 @@ def _evaluate_zone_batch(
     timing = BatchTiming()
     eos_outputs: list[EosZoneOutput] = []
     kap_outputs: list[KapZoneOutput] = []
+    timing_active = False
 
     try:
         # Setup work: not part of the timed profile call.
@@ -256,24 +257,23 @@ def _evaluate_zone_batch(
         eos = mesa.Eos() if physics == "eos" else None
         kap = mesa.Kap() if physics in {"kap", "eos-kap"} else None
 
+        mesa.enable_timing(reset=True)
+        timing_active = True
         for _ in range(warmup):
-            warmup_start = perf_counter()
             _call_profile_physics(physics, eos, kap, lnT, lnd, chem_id_values, xa)
-            warmup_profile_seconds += perf_counter() - warmup_start
+        warmup_profile_seconds = _timing_seconds(mesa.timing_summary())
+        mesa.reset_timing()
 
         for _ in range(repeat):
-            eos_result_full, kap_result, elapsed = _call_profile_physics(
-                physics,
-                eos,
-                kap,
-                lnT,
-                lnd,
-                chem_id_values,
-                xa,
+            eos_result_full, kap_result = _call_profile_physics(
+                physics, eos, kap, lnT, lnd, chem_id_values, xa
             )
-            eos_profile_call_seconds += elapsed["eos"]
-            kap_profile_call_seconds += elapsed["kap"]
-            eos_kap_profile_call_seconds += elapsed["eos_kap"]
+        call_seconds = _profile_call_seconds(mesa.timing_summary())
+        eos_profile_call_seconds = call_seconds["eos"]
+        kap_profile_call_seconds = call_seconds["kap"]
+        eos_kap_profile_call_seconds = call_seconds["eos_kap"]
+        mesa.disable_timing()
+        timing_active = False
 
         collect_start = perf_counter()
         if eos_result_full is not None:
@@ -319,6 +319,8 @@ def _evaluate_zone_batch(
             timed_repeats=repeat,
         )
     finally:
+        if timing_active:
+            mesa.disable_timing()
         shutdown_start = perf_counter()
         mesa.shutdown()
         shutdown_seconds = perf_counter() - shutdown_start
@@ -350,37 +352,49 @@ def _call_profile_physics(
     lnd: np.ndarray,
     chem_id_values: np.ndarray,
     xa: np.ndarray,
-) -> tuple[object | None, object | None, dict[str, float]]:
-    elapsed = {"eos": 0.0, "kap": 0.0, "eos_kap": 0.0}
-
+) -> tuple[object | None, object | None]:
     if physics == "eos-kap":
         if kap is None:
             raise RuntimeError("KAP object is not initialized")
-        start = perf_counter()
         # One Fortran loop: EOS first, then KAP uses that electron state.
         combined = kap.eos_kap_profile_from_logs(lnT, lnd, chem_id_values, xa)
-        elapsed["eos_kap"] = perf_counter() - start
-        return combined, combined, elapsed
+        return combined, combined
 
     if physics == "eos":
         if eos is None:
             raise RuntimeError("EOS object is not initialized")
-        start = perf_counter()
         # One Python call for the whole profile; Fortran loops over zones.
         eos_output = eos.dt_profile_from_logs(lnT, lnd, chem_id_values, xa)
-        elapsed["eos"] = perf_counter() - start
-        return eos_output, None, elapsed
+        return eos_output, None
 
     if physics == "kap":
         if kap is None:
             raise RuntimeError("KAP object is not initialized")
-        start = perf_counter()
         # KAP asks EOS for lnfree_e and eta before kap_get.
         kap_output = kap.opacity_profile_from_logs(lnT, lnd, chem_id_values, xa)
-        elapsed["kap"] = perf_counter() - start
-        return None, kap_output, elapsed
+        return None, kap_output
 
     raise ValueError(f"unsupported physics: {physics}")
+
+
+def _timing_seconds(rows: Iterable[dict[str, float | int | str]]) -> float:
+    return sum(float(row["seconds"]) for row in rows)
+
+
+def _profile_call_seconds(
+    rows: Iterable[dict[str, float | int | str]]
+) -> dict[str, float]:
+    seconds = {"eos": 0.0, "kap": 0.0, "eos_kap": 0.0}
+    for row in rows:
+        name = str(row["name"])
+        value = float(row["seconds"])
+        if name == "eos.dt_profile":
+            seconds["eos"] += value
+        elif name == "kap.opacity_profile":
+            seconds["kap"] += value
+        elif name == "kap.eos_kap_profile":
+            seconds["eos_kap"] += value
+    return seconds
 
 
 def _profile_arrays(

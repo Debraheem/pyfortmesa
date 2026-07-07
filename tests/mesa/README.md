@@ -32,7 +32,7 @@ tests/mesa/run_profile_timing_suite.sh
 This is a short wrapper around:
 
 ```bash
-tests/mesa/run_eos_from_saved_model.sh --with-mesa --summary suite --warmup 1 --repeat 5
+tests/mesa/run_eos_from_saved_model.sh --with-mesa --summary-suite --warmup 1 --repeat 5
 ```
 
 The suite runs:
@@ -44,8 +44,11 @@ combined eos+kap single run
 combined eos+kap OpenMP thread sweep
 ```
 
-It prints compact timing tables and writes raw per-run logs plus timing JSON
-files under `tests/test_output/`.
+It prints compact timing tables. Raw per-run logs plus timing JSON files are
+temporary by default; set `PYFORTMESA_PROFILE_REPORT_DIR` to keep them.
+High-level pyfortmesa public calls are timed by the package timing collector;
+the runner only adds saved-model parsing, array setup, output collection, and
+sweep orchestration.
 
 ## Overrides
 
@@ -69,7 +72,8 @@ Other useful controls are forwarded to `run_eos_from_saved_model.sh`:
 tests/mesa/run_profile_timing_suite.sh --thread-sweep=1,2,4,8
 PYFORTMESA_THREAD_COUNTS="1 3 6 12" tests/mesa/run_profile_timing_suite.sh
 PYFORTMESA_SUMMARY_THREADS=8 tests/mesa/run_profile_timing_suite.sh
-PYFORTMESA_PROFILE_REPORT_DIR=tests/test_output/custom_profile tests/mesa/run_profile_timing_suite.sh
+PYFORTMESA_PROFILE_REPORT_DIR=tests/test_output/custom_profile \
+  tests/mesa/run_profile_timing_suite.sh
 ```
 
 Meanings:
@@ -79,8 +83,8 @@ Meanings:
 PYFORTMESA_THREAD_COUNTS       -> default sweep counts if --thread-sweep is absent
 PYFORTMESA_SUMMARY_THREADS     -> thread count for the eos/kap/eos+kap single runs
 OMP_NUM_THREADS                -> fallback single run thread count
-PYFORTMESA_PROFILE_REPORT_DIR  -> directory for raw logs and JSON timing files,
-                                  default tests/test_output/
+PYFORTMESA_PROFILE_REPORT_DIR  -> directory for raw logs and JSON timing files;
+                                  unset means use a temporary directory
 ```
 
 If neither `PYFORTMESA_SUMMARY_THREADS` nor `OMP_NUM_THREADS` is set, the
@@ -98,7 +102,8 @@ For focused debugging, use the lower-level runner directly:
 tests/mesa/run_eos_from_saved_model.sh --with-mesa --physics eos --warmup 1 --repeat 5
 tests/mesa/run_eos_from_saved_model.sh --with-mesa --physics kap --warmup 1 --repeat 5
 tests/mesa/run_eos_from_saved_model.sh --with-mesa --physics eos-kap --warmup 1 --repeat 5
-tests/mesa/run_eos_from_saved_model.sh --with-mesa --thread-sweep --physics eos-kap --warmup 1 --repeat 5
+tests/mesa/run_eos_from_saved_model.sh --with-mesa --thread-sweep \
+  --physics eos-kap --warmup 1 --repeat 5
 ```
 
 kap timings include the eos electron state call required by `kap_get`. The

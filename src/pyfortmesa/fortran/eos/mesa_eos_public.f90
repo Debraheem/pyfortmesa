@@ -376,14 +376,15 @@ subroutine mesa_eos_composition_full( &
 end subroutine mesa_eos_composition_full
 
 
-subroutine mesa_eos_profile_from_logs( &
-      nzones, species, chem_id_values, lnT, lnd, xa, &
+subroutine mesa_eos_profile( &
+      nzones, species, chem_id_values, input_mode, input_T, input_Rho, xa, &
       T, Rho, res, ierr, failed_zone)
    use chem_def, only: num_chem_isos
-   use const_def, only: dp, iln10
+   use const_def, only: dp
    use eos_def, only: num_eos_basic_results, num_eos_d_dxa_results
    use eos_lib, only: eosDT_get
    use pyfortmesa_eos_state, only: ensure_eos_handle, setup_net_iso
+   use pyfortmesa_profile_inputs, only: profile_state_from_input
 
    implicit none
 
@@ -392,8 +393,9 @@ subroutine mesa_eos_profile_from_logs( &
    integer, intent(in) :: nzones
    integer, intent(in) :: species
    integer, intent(in) :: chem_id_values(species)
-   real(dp), intent(in) :: lnT(nzones)
-   real(dp), intent(in) :: lnd(nzones)
+   integer, intent(in) :: input_mode
+   real(dp), intent(in) :: input_T(nzones)
+   real(dp), intent(in) :: input_Rho(nzones)
    real(dp), intent(in) :: xa(species, nzones)
    real(dp), intent(out) :: T(nzones)
    real(dp), intent(out) :: Rho(nzones)
@@ -472,24 +474,50 @@ contains
       real(dp) :: eos_d_dlnd(num_eos_basic_results)
       real(dp) :: eos_d_dlnT(num_eos_basic_results)
       real(dp) :: eos_d_dxa(num_eos_d_dxa_results, species)
+      real(dp) :: logT
+      real(dp) :: logRho
 
       op_err = 0
-      T(k) = exp(lnT(k))
-      Rho(k) = exp(lnd(k))
-
-      if (T(k) <= 0.0_dp .or. Rho(k) <= 0.0_dp) then
-         op_err = -5
-         return
-      end if
+      call profile_state_from_input(input_mode, input_T(k), input_Rho(k), &
+         T(k), Rho(k), logT, logRho, op_err)
+      if (op_err /= 0) return
 
       call eosDT_get( &
          eos_handle, species, chem_id, net_iso, xa(:, k), &
-         Rho(k), lnd(k)*iln10, T(k), lnT(k)*iln10, &
+         Rho(k), logRho, T(k), logT, &
          eos_res, eos_d_dlnd, eos_d_dlnT, eos_d_dxa, op_err)
       if (op_err /= 0) return
 
       res(:, k) = eos_res(:)
    end subroutine do_profile_zone
+
+end subroutine mesa_eos_profile
+
+
+subroutine mesa_eos_profile_from_logs( &
+      nzones, species, chem_id_values, lnT, lnd, xa, &
+      T, Rho, res, ierr, failed_zone)
+   use const_def, only: dp
+   use pyfortmesa_profile_inputs, only: profile_input_log
+
+   implicit none
+
+   integer, parameter :: py_num_eos_basic_results = 26
+
+   integer, intent(in) :: nzones
+   integer, intent(in) :: species
+   integer, intent(in) :: chem_id_values(species)
+   real(dp), intent(in) :: lnT(nzones)
+   real(dp), intent(in) :: lnd(nzones)
+   real(dp), intent(in) :: xa(species, nzones)
+   real(dp), intent(out) :: T(nzones)
+   real(dp), intent(out) :: Rho(nzones)
+   real(dp), intent(out) :: res(py_num_eos_basic_results, nzones)
+   integer, intent(out) :: ierr
+   integer, intent(out) :: failed_zone
+
+   call mesa_eos_profile(nzones, species, chem_id_values, profile_input_log, &
+      lnT, lnd, xa, T, Rho, res, ierr, failed_zone)
 
 end subroutine mesa_eos_profile_from_logs
 
@@ -700,6 +728,316 @@ subroutine mesa_eos_solve_t( &
    if (allocated(net_iso_store)) deallocate(net_iso_store)
 
 end subroutine mesa_eos_solve_t
+
+
+subroutine mesa_eos_solve_rho_profile( &
+      nzones, species, chem_id_values, input_mode, input_T, which_other, &
+      other_value, Rho_guess, xa, logRho_tol, other_tol, max_iter, &
+      Rho_result, logRho_result, res, d_dlnd, d_dlnT, d_dxa, eos_calls, &
+      ierr, failed_zone)
+   use chem_def, only: num_chem_isos
+   use const_def, only: arg_not_provided, dp
+   use eos_def, only: num_eos_basic_results, num_eos_d_dxa_results
+   use eos_lib, only: eosDT_get_Rho
+   use pyfortmesa_eos_state, only: ensure_eos_handle, setup_net_iso
+   use pyfortmesa_profile_inputs, only: profile_input_value, profile_value_from_input
+
+   implicit none
+
+   integer, parameter :: py_num_eos_basic_results = 26
+   integer, parameter :: py_num_eos_d_dxa_results = 2
+
+   integer, intent(in) :: nzones
+   integer, intent(in) :: species
+   integer, intent(in) :: chem_id_values(species)
+   integer, intent(in) :: input_mode
+   real(dp), intent(in) :: input_T(nzones)
+   integer, intent(in) :: which_other
+   real(dp), intent(in) :: other_value(nzones)
+   real(dp), intent(in) :: Rho_guess(nzones)
+   real(dp), intent(in) :: xa(species, nzones)
+   real(dp), intent(in) :: logRho_tol
+   real(dp), intent(in) :: other_tol
+   integer, intent(in) :: max_iter
+   real(dp), intent(out) :: Rho_result(nzones)
+   real(dp), intent(out) :: logRho_result(nzones)
+   real(dp), intent(out) :: res(py_num_eos_basic_results, nzones)
+   real(dp), intent(out) :: d_dlnd(py_num_eos_basic_results, nzones)
+   real(dp), intent(out) :: d_dlnT(py_num_eos_basic_results, nzones)
+   real(dp), intent(out) :: d_dxa(py_num_eos_d_dxa_results, species, nzones)
+   integer, intent(out) :: eos_calls(nzones)
+   integer, intent(out) :: ierr
+   integer, intent(out) :: failed_zone
+
+   integer, target :: chem_id_store(species)
+   integer, allocatable, target :: net_iso_store(:)
+   integer, pointer :: chem_id(:)
+   integer, pointer :: net_iso(:)
+   integer :: eos_handle
+   integer :: k
+   integer :: op_err
+   logical :: okay
+
+   ierr = 0
+   failed_zone = 0
+   Rho_result(:) = 0.0_dp
+   logRho_result(:) = 0.0_dp
+   res(:, :) = 0.0_dp
+   d_dlnd(:, :) = 0.0_dp
+   d_dlnT(:, :) = 0.0_dp
+   d_dxa(:, :, :) = 0.0_dp
+   eos_calls(:) = 0
+
+   if (num_eos_basic_results /= py_num_eos_basic_results .or. &
+       num_eos_d_dxa_results /= py_num_eos_d_dxa_results) then
+      ierr = -4
+      return
+   end if
+
+   if (nzones <= 0 .or. species <= 0 .or. max_iter <= 0) then
+      ierr = -5
+      return
+   end if
+
+   if (which_other <= 0 .or. which_other > num_eos_basic_results) then
+      ierr = -6
+      return
+   end if
+
+   call ensure_eos_handle(eos_handle, ierr)
+
+   if (ierr == 0) allocate(net_iso_store(num_chem_isos), stat=ierr)
+
+   if (ierr == 0) then
+      call setup_net_iso(species, chem_id_values, chem_id_store, &
+         net_iso_store, ierr)
+      chem_id => chem_id_store
+      net_iso => net_iso_store
+   end if
+
+   if (ierr == 0) then
+      okay = .true.
+!$OMP PARALLEL DO PRIVATE(k,op_err) SCHEDULE(dynamic,2)
+      do k = 1, nzones
+!$OMP FLUSH(okay)
+         if (.not. okay) cycle
+
+         call do_solve_rho_zone(k, op_err)
+
+         if (op_err /= 0) then
+!$OMP CRITICAL (pyfortmesa_eos_solve_rho_profile_error)
+            if (okay) then
+               okay = .false.
+               ierr = op_err
+               failed_zone = k
+            end if
+!$OMP END CRITICAL (pyfortmesa_eos_solve_rho_profile_error)
+!$OMP FLUSH(okay)
+         end if
+      end do
+!$OMP END PARALLEL DO
+   end if
+
+   if (allocated(net_iso_store)) deallocate(net_iso_store)
+
+contains
+
+   subroutine do_solve_rho_zone(k, op_err)
+      integer, intent(in) :: k
+      integer, intent(out) :: op_err
+
+      real(dp) :: T_value
+      real(dp) :: logT
+      real(dp) :: Rho_guess_value
+      real(dp) :: logRho_guess
+      real(dp) :: eos_res(num_eos_basic_results)
+      real(dp) :: eos_d_dlnd(num_eos_basic_results)
+      real(dp) :: eos_d_dlnT(num_eos_basic_results)
+      real(dp) :: eos_d_dxa(num_eos_d_dxa_results, species)
+      integer :: zone_calls
+
+      op_err = 0
+      call profile_value_from_input(input_mode, input_T(k), T_value, logT, op_err)
+      if (op_err /= 0) return
+
+      call profile_value_from_input(profile_input_value, Rho_guess(k), &
+         Rho_guess_value, logRho_guess, op_err)
+      if (op_err /= 0) return
+
+      call eosDT_get_Rho( &
+         eos_handle, species, chem_id, net_iso, xa(:, k), &
+         logT, which_other, other_value(k), &
+         logRho_tol, other_tol, max_iter, logRho_guess, &
+         arg_not_provided, arg_not_provided, &
+         arg_not_provided, arg_not_provided, &
+         logRho_result(k), eos_res, eos_d_dlnd, eos_d_dlnT, &
+         eos_d_dxa, zone_calls, op_err)
+      if (op_err /= 0) return
+
+      Rho_result(k) = 10.0_dp**logRho_result(k)
+      res(:, k) = eos_res(:)
+      d_dlnd(:, k) = eos_d_dlnd(:)
+      d_dlnT(:, k) = eos_d_dlnT(:)
+      d_dxa(:, :, k) = eos_d_dxa(:, :)
+      eos_calls(k) = zone_calls
+   end subroutine do_solve_rho_zone
+
+end subroutine mesa_eos_solve_rho_profile
+
+
+subroutine mesa_eos_solve_t_profile( &
+      nzones, species, chem_id_values, input_mode, input_Rho, which_other, &
+      other_value, T_guess, xa, logT_tol, other_tol, max_iter, &
+      T_result, logT_result, res, d_dlnd, d_dlnT, d_dxa, eos_calls, ierr, &
+      failed_zone)
+   use chem_def, only: num_chem_isos
+   use const_def, only: arg_not_provided, dp
+   use eos_def, only: num_eos_basic_results, num_eos_d_dxa_results
+   use eos_lib, only: eosDT_get_T
+   use pyfortmesa_eos_state, only: ensure_eos_handle, setup_net_iso
+   use pyfortmesa_profile_inputs, only: profile_input_value, profile_value_from_input
+
+   implicit none
+
+   integer, parameter :: py_num_eos_basic_results = 26
+   integer, parameter :: py_num_eos_d_dxa_results = 2
+
+   integer, intent(in) :: nzones
+   integer, intent(in) :: species
+   integer, intent(in) :: chem_id_values(species)
+   integer, intent(in) :: input_mode
+   real(dp), intent(in) :: input_Rho(nzones)
+   integer, intent(in) :: which_other
+   real(dp), intent(in) :: other_value(nzones)
+   real(dp), intent(in) :: T_guess(nzones)
+   real(dp), intent(in) :: xa(species, nzones)
+   real(dp), intent(in) :: logT_tol
+   real(dp), intent(in) :: other_tol
+   integer, intent(in) :: max_iter
+   real(dp), intent(out) :: T_result(nzones)
+   real(dp), intent(out) :: logT_result(nzones)
+   real(dp), intent(out) :: res(py_num_eos_basic_results, nzones)
+   real(dp), intent(out) :: d_dlnd(py_num_eos_basic_results, nzones)
+   real(dp), intent(out) :: d_dlnT(py_num_eos_basic_results, nzones)
+   real(dp), intent(out) :: d_dxa(py_num_eos_d_dxa_results, species, nzones)
+   integer, intent(out) :: eos_calls(nzones)
+   integer, intent(out) :: ierr
+   integer, intent(out) :: failed_zone
+
+   integer, target :: chem_id_store(species)
+   integer, allocatable, target :: net_iso_store(:)
+   integer, pointer :: chem_id(:)
+   integer, pointer :: net_iso(:)
+   integer :: eos_handle
+   integer :: k
+   integer :: op_err
+   logical :: okay
+
+   ierr = 0
+   failed_zone = 0
+   T_result(:) = 0.0_dp
+   logT_result(:) = 0.0_dp
+   res(:, :) = 0.0_dp
+   d_dlnd(:, :) = 0.0_dp
+   d_dlnT(:, :) = 0.0_dp
+   d_dxa(:, :, :) = 0.0_dp
+   eos_calls(:) = 0
+
+   if (num_eos_basic_results /= py_num_eos_basic_results .or. &
+       num_eos_d_dxa_results /= py_num_eos_d_dxa_results) then
+      ierr = -4
+      return
+   end if
+
+   if (nzones <= 0 .or. species <= 0 .or. max_iter <= 0) then
+      ierr = -5
+      return
+   end if
+
+   if (which_other <= 0 .or. which_other > num_eos_basic_results) then
+      ierr = -6
+      return
+   end if
+
+   call ensure_eos_handle(eos_handle, ierr)
+
+   if (ierr == 0) allocate(net_iso_store(num_chem_isos), stat=ierr)
+
+   if (ierr == 0) then
+      call setup_net_iso(species, chem_id_values, chem_id_store, &
+         net_iso_store, ierr)
+      chem_id => chem_id_store
+      net_iso => net_iso_store
+   end if
+
+   if (ierr == 0) then
+      okay = .true.
+!$OMP PARALLEL DO PRIVATE(k,op_err) SCHEDULE(dynamic,2)
+      do k = 1, nzones
+!$OMP FLUSH(okay)
+         if (.not. okay) cycle
+
+         call do_solve_t_zone(k, op_err)
+
+         if (op_err /= 0) then
+!$OMP CRITICAL (pyfortmesa_eos_solve_t_profile_error)
+            if (okay) then
+               okay = .false.
+               ierr = op_err
+               failed_zone = k
+            end if
+!$OMP END CRITICAL (pyfortmesa_eos_solve_t_profile_error)
+!$OMP FLUSH(okay)
+         end if
+      end do
+!$OMP END PARALLEL DO
+   end if
+
+   if (allocated(net_iso_store)) deallocate(net_iso_store)
+
+contains
+
+   subroutine do_solve_t_zone(k, op_err)
+      integer, intent(in) :: k
+      integer, intent(out) :: op_err
+
+      real(dp) :: Rho_value
+      real(dp) :: logRho
+      real(dp) :: T_guess_value
+      real(dp) :: logT_guess
+      real(dp) :: eos_res(num_eos_basic_results)
+      real(dp) :: eos_d_dlnd(num_eos_basic_results)
+      real(dp) :: eos_d_dlnT(num_eos_basic_results)
+      real(dp) :: eos_d_dxa(num_eos_d_dxa_results, species)
+      integer :: zone_calls
+
+      op_err = 0
+      call profile_value_from_input(input_mode, input_Rho(k), Rho_value, logRho, op_err)
+      if (op_err /= 0) return
+
+      call profile_value_from_input(profile_input_value, T_guess(k), &
+         T_guess_value, logT_guess, op_err)
+      if (op_err /= 0) return
+
+      call eosDT_get_T( &
+         eos_handle, species, chem_id, net_iso, xa(:, k), &
+         logRho, which_other, other_value(k), &
+         logT_tol, other_tol, max_iter, logT_guess, &
+         arg_not_provided, arg_not_provided, &
+         arg_not_provided, arg_not_provided, &
+         logT_result(k), eos_res, eos_d_dlnd, eos_d_dlnT, &
+         eos_d_dxa, zone_calls, op_err)
+      if (op_err /= 0) return
+
+      T_result(k) = 10.0_dp**logT_result(k)
+      res(:, k) = eos_res(:)
+      d_dlnd(:, k) = eos_d_dlnd(:)
+      d_dlnT(:, k) = eos_d_dlnT(:)
+      d_dxa(:, :, k) = eos_d_dxa(:, :)
+      eos_calls(k) = zone_calls
+   end subroutine do_solve_t_zone
+
+end subroutine mesa_eos_solve_t_profile
 
 
 subroutine mesa_eos_shutdown(release_tables, ierr)

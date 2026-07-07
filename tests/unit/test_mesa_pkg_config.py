@@ -88,7 +88,18 @@ def test_pkg_config_path_error_mentions_shared_mesa():
     assert "build/*/lib/pkgconfig" in message
 
 
+def test_split_link_args_separates_rpaths():
+    helper = load_helper()
+    link_args, rpaths = helper.split_link_args(
+        "-L/a -lfoo -Wl,-rpath,/a -Wl,-rpath,/a -Wl,-rpath /b -L/c"
+    )
+
+    assert link_args == ["-L/a", "-lfoo", "-L/c"]
+    assert rpaths == ["/a", "/b"]
+
+
 if __name__ == "__main__":
     test_pkg_config_path_finds_installed_and_build_layouts()
     test_pkg_config_path_finds_direct_build_layout()
     test_pkg_config_path_error_mentions_shared_mesa()
+    test_split_link_args_separates_rpaths()

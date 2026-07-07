@@ -12,13 +12,18 @@ export MESA_DIR=/path/to/current/mesa
 tests/work/run_simple_chem_eos_kap.sh
 ```
 
+The same directory also contains `testing_eos_kap_calls.ipynb` for interactive
+notebook work. It uses the local `inlist_eos_and_kap` file and follows the same
+composition/profile layout as the script.
+
 The example does four things:
 
 1. Sets the cache root and `inlist_eos_and_kap` once.
 2. Builds one composition from isotope-name mass fractions.
 3. Calls `chem`, scalar `eos`, and scalar `kap`.
-4. Calls the combined profile wrapper with precomputed isotope ids and a
-   Fortran-ordered `xa(species, zones)` array.
+4. Calls the combined profile wrapper with precomputed isotope ids and either a
+   fixed `xa(species)` vector or a Fortran-ordered `xa(species, zones)` array.
 
 That last call is the pattern to copy when both eos and kap are needed across a
-profile.
+profile. The notebook uses raw profile outputs, so EOS result rows are indexed
+with `mesa.EOS_RESULT_NAMES`.

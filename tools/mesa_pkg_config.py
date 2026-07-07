@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -83,11 +84,49 @@ def run_pkg_config(flag: str, packages: list[str]) -> str:
     return result.stdout.strip()
 
 
+def _dedupe(values: list[str]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
+
+
+def split_link_args(pkg_config_output: str) -> tuple[list[str], list[str]]:
+    """Split pkg-config linker output into link args and runtime paths."""
+    tokens = shlex.split(pkg_config_output)
+    link_args: list[str] = []
+    rpaths: list[str] = []
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if token.startswith("-Wl,-rpath,"):
+            rpath = token.removeprefix("-Wl,-rpath,")
+            if rpath:
+                rpaths.append(rpath)
+            index += 1
+        elif token == "-Wl,-rpath" and index + 1 < len(tokens):
+            rpaths.append(tokens[index + 1])
+            index += 2
+        else:
+            link_args.append(token)
+            index += 1
+    return link_args, _dedupe(rpaths)
+
+
+def join_args(args: list[str]) -> str:
+    """Return shell-escaped args for command-line display and Meson splitting."""
+    return " ".join(shlex.quote(arg) for arg in args)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "mode",
-        choices=("path", "cflags", "libs"),
+        choices=("path", "cflags", "libs", "link-args", "rpaths"),
         help="information to print",
     )
     parser.add_argument("packages", nargs="*", help="pkg-config package names")
@@ -100,7 +139,20 @@ def main() -> None:
     if not args.packages:
         raise SystemExit(f"{args.mode} requires at least one package")
 
-    print(run_pkg_config(f"--{args.mode}", args.packages))
+    if args.mode == "cflags":
+        print(run_pkg_config("--cflags", args.packages))
+        return
+
+    libs = run_pkg_config("--libs", args.packages)
+    if args.mode == "libs":
+        print(libs)
+        return
+
+    link_args, rpaths = split_link_args(libs)
+    if args.mode == "link-args":
+        print(join_args(link_args))
+    else:
+        print(join_args(rpaths))
 
 
 if __name__ == "__main__":

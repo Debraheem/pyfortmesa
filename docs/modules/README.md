@@ -29,6 +29,7 @@ Module pages:
 - [chem](chem.md)
 - [eos](eos.md)
 - [kap](kap.md)
+- [API helpers](api_helpers.md)
 
 The useful static-composition path is:
 
@@ -39,3 +40,8 @@ constants   -> const
 
 For fast calls from inside a numerical solver where `T`, `rho`, and
 composition are already known, `net` is not part of the call path.
+
+Each module page has a public API reference, output fields, source mapping, and
+a "Not included" table. Those omitted routines are left out deliberately when
+they are low-level handles, table loaders, hook systems, or specialized MESA
+internals without a current Python workflow.

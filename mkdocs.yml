@@ -15,6 +15,7 @@ nav:
   - Usage: usage.md
   - MESA modules:
       - overview: modules/README.md
+      - API helpers: modules/api_helpers.md
       - const: modules/const.md
       - chem: modules/chem.md
       - eos: modules/eos.md

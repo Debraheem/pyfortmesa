@@ -57,7 +57,8 @@ def main() -> int:
 
         # One profile call. Fortran loops over zones.
         out = kap.eos_kap_profile(T_profile, rho_profile, chem_id, xa_profile)
-        print("profile gamma1:", out["results"]["gamma1"])
+        i_gamma1 = mesa.EOS_RESULT_NAMES.index("gamma1")
+        print("profile gamma1:", out["results"][i_gamma1, :])
         print("profile kappa:", out["kappa"])
     finally:
         mesa.shutdown()

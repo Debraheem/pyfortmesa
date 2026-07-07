@@ -219,9 +219,20 @@ if not hasattr(kap, "mesa_eos_kap_profile_from_logs"):
     fi
   }
 
-  # Write timing JSON files, then print one compact report.
+  # Write temporary timing JSON files, then print one compact report.
   run_profile_summary_suite() {
-    report_dir="${PYFORTMESA_PROFILE_REPORT_DIR:-$repo_root/tests/test_output}"
+    local keep_reports=0
+    local report_dir
+    local summary_threads
+    local last_index
+    local -a single_json_args=()
+    local -a sweep_json_args=()
+    if [[ -n "${PYFORTMESA_PROFILE_REPORT_DIR:-}" ]]; then
+      report_dir="$PYFORTMESA_PROFILE_REPORT_DIR"
+      keep_reports=1
+    else
+      report_dir="$(mktemp -d "${TMPDIR:-/tmp}/pyfortmesa-profile.XXXXXX")"
+    fi
     mkdir -p "$report_dir"
 
     summary_threads="${PYFORTMESA_SUMMARY_THREADS:-${OMP_NUM_THREADS:-}}"
@@ -233,9 +244,6 @@ if not hasattr(kap, "mesa_eos_kap_profile_from_logs"):
       echo "error: invalid summary OpenMP thread count '$summary_threads'"
       exit 2
     fi
-
-    single_json_args=()
-    sweep_json_args=()
 
     run_suite_case() {
       local kind="$1"
@@ -271,7 +279,12 @@ if not hasattr(kap, "mesa_eos_kap_profile_from_logs"):
     done
 
     python "$report_file" "${single_json_args[@]}" "${sweep_json_args[@]}"
-    echo "raw timing logs: $report_dir"
+    if [[ "$keep_reports" == 1 ]]; then
+      echo "raw timing logs: $report_dir"
+    else
+      rm -rf "$report_dir"
+      echo "raw timing logs discarded; set PYFORTMESA_PROFILE_REPORT_DIR to keep them"
+    fi
   }
 
   if [[ "$summary_suite" == 1 ]]; then

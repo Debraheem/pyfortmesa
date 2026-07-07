@@ -166,8 +166,9 @@ The standard saved model timing report can also be run directly:
 tests/mesa/run_profile_timing_suite.sh
 ```
 
-Generated logs and timing JSON files are written under `tests/test_output/`.
-The committed deterministic baseline is
+The timing report prints compact tables. Raw per-run logs and timing JSON are
+temporary by default; set `PYFORTMESA_PROFILE_REPORT_DIR` to keep them. The
+committed deterministic baseline is
 `tests/test_output/golden/quick_test_output.txt`. MESA timings are not golden
 files because they depend on the local MESA build and machine.
 
@@ -242,10 +243,16 @@ mesa.shutdown()
 `mesa.set_inlist(...)` should be called before the first eos or kap call in a
 Python process. The file can contain both `&eos` and `&kap` namelists.
 
+`mix` is a scalar-call composition object. It stores the isotope names, matching
+MESA `chem_id` values, and one mass-fraction vector. Scalar helpers accept it as
+`comp=mix`.
+
 ### Profile example
 
 For profile work, do not call scalar eos or kap once per zone from Python. Batch
-the profile and let the Fortran wrapper run the zone loop.
+the profile and let the Fortran wrapper run the zone loop. Profile helpers take
+the composition in split form: `chem_id_values` gives the isotope order, and
+`xa` gives the mass fractions with shape `(species, nzones)`.
 
 ```bash
 export OMP_NUM_THREADS=10
@@ -261,8 +268,9 @@ mesa.set_cache_root(".")
 mesa.set_inlist("inlist_eos_and_kap")
 
 isotope_names = ("h1", "he4", "c12")
-chem_id = mesa.iso_ids(isotope_names)
+chem_id_values = mesa.iso_ids(isotope_names)
 kap = mesa.Kap()
+i_gamma1 = mesa.EOS_RESULT_NAMES.index("gamma1")
 
 
 def profile_xa(xa_by_zone):
@@ -273,12 +281,44 @@ def profile_xa(xa_by_zone):
 
 try:
     for T, rho, xa_by_zone in profiles:
-        out = kap.eos_kap_profile(T, rho, chem_id, profile_xa(xa_by_zone))
-        gamma1 = out["results"]["gamma1"]
+        out = kap.eos_kap_profile(T, rho, chem_id_values, profile_xa(xa_by_zone))
+        gamma1 = out["results"][i_gamma1, :]
         kappa = out["kappa"]
 finally:
     mesa.shutdown()
 ```
+
+For a fixed-composition EOS profile on an arbitrary base-10 `logT`/`logRho`
+track, build one `Composition` and pass its 1D `xa` vector. The wrapper
+broadcasts fixed compositions over zones. Use `input_mode="log10"` when the
+arrays are base-10 logs:
+
+```python
+log_rho = np.linspace(-2.0, 8.0, 1000)
+log_T = np.linspace(3.0, 8.0, 1000)
+
+mix = mesa.composition({"h1": 0.70, "he4": 0.28, "c12": 0.02})
+
+out = mesa.Eos().dt_profile(log_T, log_rho, mix.chem_id, mix.xa, input_mode="log10")
+```
+
+For KAP profile work, choose points in a valid opacity-table region. A common
+base-10 coordinate is `logR = logRho - 3*logT + 18`:
+
+```python
+log_T = np.linspace(3.75, 8.0, 1000)
+log_R = np.full_like(log_T, -3.0)
+log_rho = log_R + 3.0*log_T - 18.0
+
+T = 10.0**log_T
+rho = 10.0**log_rho
+
+out = mesa.Kap().eos_kap_profile(T, rho, mix.chem_id, mix.xa)
+```
+
+Use `input_mode="log"` for natural-log arrays and `input_mode="log10"` for
+base-10 arrays. The older `*_from_logs(...)` helpers are compatibility aliases
+for natural-log input.
 
 Use `mesa.Eos().dt_profile(...)` for eos profile work. Use
 `mesa.Kap().opacity_profile(...)` for opacity work. When both eos and kap

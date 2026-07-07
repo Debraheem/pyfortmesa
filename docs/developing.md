@@ -104,6 +104,134 @@ src/pyfortmesa/fortran/kap/mesa_kap_public.f90
 tests/mesa/eos_from_saved_model.py
 ```
 
+## Output schemas
+
+Use `mesa.output_schema(...)` when you want the expected EOS/KAP output layout
+without making a MESA call. The helper returns plain Python rows with `column`,
+`path`, `units`, `shape`, and `comment` keys. This is useful when deciding the
+columns for a DataFrame or checking nested output dictionaries.
+
+```python
+from pyfortmesa import mesa
+
+for row in mesa.output_schema("eos_kap_profile"):
+    print(row["column"], row["units"], row["shape"])
+```
+
+For an interactive, comment-style summary:
+
+```python
+print(mesa.format_output_schema("eos_kap_profile"))
+```
+
+which prints entries like:
+
+```text
+T               # units=K; shape=(nzones,); temperature
+Rho             # units=g/cm^3; shape=(nzones,); density
+results.lnPgas  # units=ln(dyn/cm^2); shape=(nzones,); natural log gas pressure
+kappa           # units=cm^2/g; shape=(nzones,); Rosseland mean opacity
+```
+
+For scalar full-output helpers, pass isotope names to expand composition
+derivative columns:
+
+```python
+mesa.output_columns("kap_opacity_full", species=("h1", "he4", "c12"))
+mesa.format_output_schema("eos_dt_full", species=("h1", "he4", "c12"))
+```
+
+Supported schema names are:
+
+```python
+mesa.output_schema_names()
+mesa.output_schema_names(include_aliases=True)
+```
+
+## MESA handle lifecycle
+
+MESA `eos` and `kap` handles are integer slots into MESA-owned handle arrays.
+MESA defines those arrays in its own source:
+
+```text
+$MESA_DIR/eos/public/eos_def.f90 -> eos_handles(max_eos_handles)
+$MESA_DIR/kap/public/kap_def.f90 -> kap_handles(max_kap_handles)
+```
+
+The integer handle selects one `EoS_General_Info` or `Kap_General_Info` slot.
+That slot stores per-caller controls read from an inlist or set by code. MESA
+uses this so different callers can have different control state in the same
+process.
+
+pyfortmesa currently keeps one persistent handle per wrapper module, not one
+handle per Python object:
+
+```text
+src/pyfortmesa/fortran/eos/mesa_eos_public.f90
+  eos_handle_store -> pyfortmesa's eos handle
+
+src/pyfortmesa/fortran/kap/mesa_kap_public.f90
+  kap_handle_store -> pyfortmesa's kap handle
+  eos_handle_store -> eos handle owned by the kap wrapper
+```
+
+The first eos call goes through `ensure_eos_handle`, initializes MESA if needed,
+and allocates `eos_handle_store`. The first kap call goes through
+`ensure_kap_handles`, initializes MESA if needed, and allocates both
+`kap_handle_store` and the kap-owned `eos_handle_store`. Later calls reuse those
+saved integers.
+
+The Python classes are lighter than MESA handles:
+
+```python
+kap_type1 = mesa.Kap(use_type2=False)
+kap_type2 = mesa.Kap(use_type2=True, zbase=0.02)
+```
+
+Those two Python objects do not allocate two MESA `kap` handles. They store two
+sets of Python controls. Before each wrapper call, pyfortmesa applies the
+selected object's controls to the one saved Fortran `kap_handle_store` with
+`apply_kap_controls`.
+
+This is different from MESA's `kap/test/src/sample_kap.f90`, which allocates two
+MESA kap handles so it can evaluate Type1 and Type2 opacities side by side in
+one loop. Normal MESA/star usage usually has one `s% kap_handle` whose controls
+may enable Type2. Type2 itself does not require two handles; MESA's `kap_get`
+does the Type1/Type2 blending from the controls on the handle.
+
+The current public pyfortmesa API therefore cannot call two independent MESA
+kap handles at the same time. Supporting that would need a wrapper change, such
+as storing more than one Fortran handle or exposing explicit handle allocation,
+freeing, and handle-indexed call routines.
+
+`mesa.shutdown()` frees pyfortmesa's saved handles but leaves MESA's loaded
+tables available:
+
+```text
+mesa.shutdown()
+  -> free_kap_handle(kap_handle_store)
+  -> free_eos_handle(kap wrapper eos_handle_store)
+  -> free_eos_handle(eos wrapper eos_handle_store)
+  -> reset pyfortmesa saved handles to -1
+```
+
+After that, another eos or kap call can allocate fresh handles again. This is
+why `mesa.shutdown()` belongs at the end of a driver, not inside a repeated-call
+loop.
+
+`mesa.shutdown(release_tables=True)` is heavier. It does the handle cleanup
+above and also calls the MESA shutdown routines for loaded table state:
+
+```text
+kap_shutdown()
+eos_shutdown()
+chem_shutdown()
+```
+
+Use `release_tables=True` only when no other code in the Python process is using
+MESA. Releasing tables can make a later call pay initialization and table-loading
+costs again, and it is not needed for normal end-of-driver cleanup.
+
 ## Package builds
 
 A wheel is Python's built install file, with a `.whl` suffix.
@@ -273,8 +401,16 @@ A useful preflight check is:
 ```bash
 echo $MESA_DIR
 python tools/mesa_pkg_config.py path
-PKG_CONFIG_PATH=$(python tools/mesa_pkg_config.py path) pkg-config --cflags --libs mesa-const mesa-chem mesa-eos mesa-kap
+PKG_CONFIG_PATH=$(python tools/mesa_pkg_config.py path) \
+  pkg-config --cflags --libs mesa-const mesa-chem mesa-eos mesa-kap
 ```
+
+The optional MESA extensions are declared in `meson.build` by
+`mesa_wrapper_specs`. Each entry names one extension module, its Fortran source,
+the pkg-config packages it needs, and the Fortran symbols exposed through f2py.
+When adding a new wrapper routine to an existing module, add its Fortran
+subroutine name to that module's `symbols` list. Add a new table entry only when
+there is a new compiled extension module.
 
 ## Docs
 
