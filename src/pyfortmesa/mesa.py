@@ -56,14 +56,9 @@ from .mesa_support import (
 
 @_timed_api("constants")
 def constants() -> dict[str, float]:
-    """Return selected MESA `const_def` values in cgs units.
-
-    Output keys are `standard_cgrav`, `crad`, `clight`, `Lsun`, `Rsun`, and
-    `Msun`.
-    """
+    """Return scalar real MESA `const_def` constants in cgs/MESA units."""
     mesa_const = _load_mesa_extension("_mesa_const")
-    values = mesa_const.mesa_const_values()
-    *constant_values, ierr = values
+    constant_values, ierr = mesa_const.mesa_const_values()
     _check_ierr("MESA CONST", ierr)
     return _named_vector(MESA_CONSTANT_NAMES, constant_values)
 
@@ -154,6 +149,51 @@ def composition_info(
         "ye": float(ye),
         "mass_correction": float(mass_correction),
         "sumx": float(sumx),
+    }
+
+
+@_timed_api("composition_info_full")
+def composition_info_full(
+    comp: Composition | Mapping[str, float] | Iterable[float] | None,
+) -> dict[str, float | dict[str, float]]:
+    """Return MESA CHEM moments plus composition partial derivatives."""
+    composition_data = _prepare_composition(comp)
+    mesa_chem = _load_mesa_extension("_mesa_chem")
+    values = mesa_chem.mesa_chem_composition_info_full(
+        composition_data.chem_id,
+        composition_data.xa,
+    )
+    (
+        xh,
+        xhe,
+        xz,
+        abar,
+        zbar,
+        z2bar,
+        z53bar,
+        ye,
+        mass_correction,
+        sumx,
+        dabar_dx,
+        dzbar_dx,
+        dmc_dx,
+        ierr,
+    ) = values
+    _check_ierr("MESA CHEM", ierr)
+    return {
+        "xh": float(xh),
+        "xhe": float(xhe),
+        "xz": float(xz),
+        "abar": float(abar),
+        "zbar": float(zbar),
+        "z2bar": float(z2bar),
+        "z53bar": float(z53bar),
+        "ye": float(ye),
+        "mass_correction": float(mass_correction),
+        "sumx": float(sumx),
+        "dabar_dx": _named_species_vector(composition_data.names, dabar_dx),
+        "dzbar_dx": _named_species_vector(composition_data.names, dzbar_dx),
+        "dmc_dx": _named_species_vector(composition_data.names, dmc_dx),
     }
 
 
@@ -1090,6 +1130,13 @@ class Chem:
         """Return MESA CHEM moments for a mass-fraction composition."""
         return composition_info(comp)
 
+    def composition_info_full(
+        self,
+        comp: Composition | Mapping[str, float] | Iterable[float] | None,
+    ) -> dict[str, float | dict[str, float]]:
+        """Return MESA CHEM moments plus composition partial derivatives."""
+        return composition_info_full(comp)
+
 
 class Eos:
     """Small Python handle for MESA EOS calls."""
@@ -1396,6 +1443,7 @@ __all__ = [
     "SAMPLE_ISOTOPES",
     "composition",
     "composition_info",
+    "composition_info_full",
     "constants",
     "disable_timing",
     "enable_timing",

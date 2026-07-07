@@ -98,6 +98,7 @@ if with_mesa
       'pkg_config' : ['mesa-chem'],
       'symbols' : [
         'mesa_chem_composition_info',
+        'mesa_chem_composition_info_full',
         'mesa_chem_shutdown',
       ],
       'extra_outputs' : [],

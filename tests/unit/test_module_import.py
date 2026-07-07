@@ -8,6 +8,7 @@ REQUIRED_MESA_API = (
     "Eos",
     "Kap",
     "composition",
+    "composition_info_full",
     "constants",
     "iso_id",
     "iso_ids",

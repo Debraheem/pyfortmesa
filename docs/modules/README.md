@@ -10,7 +10,7 @@ MESA module access, use [pyMesa](https://github.com/rjfarmer/pyMesa).
 Active in the `./mk mesa` build:
 
 ```text
-const -> selected values from MESA const_def
+const -> scalar real constants from MESA const_def
 chem  -> composition helpers
 eos   -> density-temperature eos calls and rho/T inverse solves
 kap   -> opacity calls using eos electron quantities and Type2 controls

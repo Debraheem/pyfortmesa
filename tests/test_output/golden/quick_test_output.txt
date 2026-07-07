@@ -22,6 +22,7 @@ mesa_api: Chem, ok=True
 mesa_api: Eos, ok=True
 mesa_api: Kap, ok=True
 mesa_api: composition, ok=True
+mesa_api: composition_info_full, ok=True
 mesa_api: constants, ok=True
 mesa_api: iso_id, ok=True
 mesa_api: iso_ids, ok=True

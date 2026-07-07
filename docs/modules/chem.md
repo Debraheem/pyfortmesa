@@ -125,6 +125,35 @@ info = mesa.composition_info(mix)
 print(info["xh"], info["abar"], info["sumx"])
 ```
 
+### `mesa.composition_info_full(...)`
+
+Signature:
+
+```python
+mesa.composition_info_full(
+    comp: Composition | Mapping[str, float] | Iterable[float] | None,
+) -> dict[str, float | dict[str, float]]
+```
+
+Inputs: same as `mesa.composition_info(...)`.
+
+Returns: the same scalar moments plus MESA composition partial derivatives in
+the input species order.
+
+| key | units | shape | meaning |
+| --- | --- | --- | --- |
+| `dabar_dx` | derivative | `(species,)` by isotope name | derivative of `abar` with respect to mass fraction |
+| `dzbar_dx` | derivative | `(species,)` by isotope name | derivative of `zbar` with respect to mass fraction |
+| `dmc_dx` | derivative | `(species,)` by isotope name | derivative of `mass_correction` with respect to mass fraction |
+
+Example:
+
+```python
+mix = mesa.composition({"h1": 0.70, "he4": 0.28, "c12": 0.02})
+info = mesa.composition_info_full(mix)
+print(info["dabar_dx"]["h1"])
+```
+
 ### `mesa.iso_id(...)`
 
 Signature:
@@ -194,6 +223,7 @@ small legacy examples that expect the fixed seven-isotope order.
 chem = mesa.Chem()
 mix = chem.composition({"h1": 0.70, "he4": 0.28, "c12": 0.02})
 info = chem.composition_info(mix)
+full_info = chem.composition_info_full(mix)
 ids = chem.iso_ids(mix.names)
 ```
 
@@ -202,6 +232,7 @@ Methods:
 ```text
 Chem().composition(...)
 Chem().composition_info(...)
+Chem().composition_info_full(...)
 Chem().iso_id(...)
 Chem().iso_ids(...)
 ```
@@ -220,6 +251,7 @@ Fortran wrappers:
 
 ```text
 mesa_chem_composition_info -> basic_composition_info
+mesa_chem_composition_info_full -> composition_info
 mesa_chem_shutdown -> chem_shutdown
 ```
 
@@ -234,12 +266,22 @@ mesa_chem_shutdown -> chem_shutdown
 - `mesa.composition(...)` does not run MESA `net`. It only maps isotope names
   and mass fractions into the layout expected by the EOS/KAP wrappers.
 
+## Other CHEM candidates
+
+The main MESA CHEM derivative path is exposed through
+`mesa.composition_info_full(...)`, which wraps MESA `composition_info` and
+returns `dabar_dx`, `dzbar_dx`, and `dmc_dx`.
+
+Solar abundance lookup helpers and nuclear-data helpers are also available in
+MESA, but they need a clearer Python shape before they should be public API.
+
 ## Not included
 
 | MESA item | Reason |
 | --- | --- |
 | `chem_init` | Internal setup called by wrappers as needed; not useful as a Python user call. |
 | `chem_shutdown` | Exposed through `mesa.shutdown(release_tables=True)` instead of a raw shutdown function. |
-| solar abundance helpers | Useful later, but not needed for current arbitrary-composition EOS/KAP workflows. |
-| nuclear mass, mass-excess, and Q-value helpers | Belong to a broader nuclear data API, not the current microphysics wrapper scope. |
-| nuclide-set generation helpers | More MESA-internal than user-facing for the current package. |
+| `chem_get_solar`, `chem_Xsol`, `lodders03_element_atom_percent` | Solar abundance data; should be a deliberate abundance-table API, not one-off scalar wrappers. |
+| `chem_get_element_id`, `generate_nuclide_names`, `generate_long_nuclide_names`, `lookup_ZN`, `lookup_ZN_isomeric_state` | Name/id conversion helpers; Python already reads isotope names, and string-array wrappers need careful shape handling. |
+| `binding_energy`, `get_mass_excess`, `get_Q`, `get_partition_fcn_indx`, `get_stable_mass_frac` | Nuclear-data utilities; belong to a broader nuclear data API, not the current microphysics wrapper scope. |
+| `generate_nuclide_set`, `get_nuclide_index_in_set`, `rates_category_id` | More MESA-internal than user-facing for the current package. |

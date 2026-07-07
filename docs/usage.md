@@ -71,10 +71,13 @@ Useful output fields:
 
 ```text
 mesa.constants()
-  standard_cgrav, crad, clight, Lsun, Rsun, Msun
+  scalar real constants from MESA const_def; see modules/const.md
 
 mesa.Chem().composition_info(...)
   xh, xhe, xz, abar, zbar, z2bar, z53bar, ye, mass_correction, sumx
+
+mesa.Chem().composition_info_full(...)
+  composition_info fields plus dabar_dx, dzbar_dx, dmc_dx
 
 mesa.Eos().dt_full(...)
   results, d_dlnRho, d_dlnT, d_dxa

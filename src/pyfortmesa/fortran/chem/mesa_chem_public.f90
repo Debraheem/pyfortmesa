@@ -2,11 +2,8 @@ subroutine mesa_chem_composition_info( &
       species, chem_id_values, xa, &
       xh, xhe, xz, abar, zbar, z2bar, z53bar, ye, &
       mass_correction, sumx, ierr)
-   use chem_def, only: num_chem_isos
-   use chem_lib, only: basic_composition_info, chem_init
+   use chem_lib, only: basic_composition_info
    use const_def, only: dp
-   use const_lib, only: const_init
-   use math_lib, only: math_init
 
    implicit none
 
@@ -25,8 +22,7 @@ subroutine mesa_chem_composition_info( &
    real(dp), intent(out) :: sumx
    integer, intent(out) :: ierr
 
-   integer, target :: chem_id_store(species)
-   integer :: i
+   integer :: chem_id_store(species)
 
    ierr = 0
    xh = 0.0_dp
@@ -39,6 +35,91 @@ subroutine mesa_chem_composition_info( &
    ye = 0.0_dp
    mass_correction = 0.0_dp
    sumx = 0.0_dp
+
+   call mesa_chem_prepare(species, chem_id_values, chem_id_store, ierr)
+
+   if (ierr == 0) then
+      call basic_composition_info( &
+         species, chem_id_store, xa, xh, xhe, xz, &
+         abar, zbar, z2bar, z53bar, ye, mass_correction, sumx)
+   end if
+
+end subroutine mesa_chem_composition_info
+
+
+subroutine mesa_chem_composition_info_full( &
+      species, chem_id_values, xa, &
+      xh, xhe, xz, abar, zbar, z2bar, z53bar, ye, &
+      mass_correction, sumx, dabar_dx, dzbar_dx, dmc_dx, ierr)
+   use chem_lib, only: composition_info
+   use const_def, only: dp
+
+   implicit none
+
+   integer, intent(in) :: species
+   integer, intent(in) :: chem_id_values(species)
+   real(dp), intent(in) :: xa(species)
+   real(dp), intent(out) :: xh
+   real(dp), intent(out) :: xhe
+   real(dp), intent(out) :: xz
+   real(dp), intent(out) :: abar
+   real(dp), intent(out) :: zbar
+   real(dp), intent(out) :: z2bar
+   real(dp), intent(out) :: z53bar
+   real(dp), intent(out) :: ye
+   real(dp), intent(out) :: mass_correction
+   real(dp), intent(out) :: sumx
+   real(dp), intent(out) :: dabar_dx(species)
+   real(dp), intent(out) :: dzbar_dx(species)
+   real(dp), intent(out) :: dmc_dx(species)
+   integer, intent(out) :: ierr
+
+   integer :: chem_id_store(species)
+
+   ierr = 0
+   xh = 0.0_dp
+   xhe = 0.0_dp
+   xz = 0.0_dp
+   abar = 0.0_dp
+   zbar = 0.0_dp
+   z2bar = 0.0_dp
+   z53bar = 0.0_dp
+   ye = 0.0_dp
+   mass_correction = 0.0_dp
+   sumx = 0.0_dp
+   dabar_dx = 0.0_dp
+   dzbar_dx = 0.0_dp
+   dmc_dx = 0.0_dp
+
+   call mesa_chem_prepare(species, chem_id_values, chem_id_store, ierr)
+
+   if (ierr == 0) then
+      call composition_info( &
+         species, chem_id_store, xa, xh, xhe, xz, &
+         abar, zbar, z2bar, z53bar, ye, mass_correction, sumx, &
+         dabar_dx, dzbar_dx, dmc_dx)
+   end if
+
+end subroutine mesa_chem_composition_info_full
+
+
+subroutine mesa_chem_prepare(species, chem_id_values, chem_id_store, ierr)
+   use chem_def, only: num_chem_isos
+   use chem_lib, only: chem_init
+   use const_lib, only: const_init
+   use math_lib, only: math_init
+
+   implicit none
+
+   integer, intent(in) :: species
+   integer, intent(in) :: chem_id_values(species)
+   integer, intent(out) :: chem_id_store(species)
+   integer, intent(out) :: ierr
+
+   integer :: i
+
+   ierr = 0
+   chem_id_store = 0
 
    call math_init()
 
@@ -56,13 +137,7 @@ subroutine mesa_chem_composition_info( &
       end do
    end if
 
-   if (ierr == 0) then
-      call basic_composition_info( &
-         species, chem_id_store, xa, xh, xhe, xz, &
-         abar, zbar, z2bar, z53bar, ye, mass_correction, sumx)
-   end if
-
-end subroutine mesa_chem_composition_info
+end subroutine mesa_chem_prepare
 
 
 subroutine mesa_chem_shutdown(ierr)

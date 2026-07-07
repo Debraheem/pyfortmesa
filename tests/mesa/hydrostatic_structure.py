@@ -47,7 +47,8 @@ class Shell:
 
 def load_mesa_constants() -> MesaConstants:
     """Load the constants needed by this example from MESA const_def."""
-    return MesaConstants(**mesa.constants())
+    constants = mesa.constants()
+    return MesaConstants(**{name: constants[name] for name in MesaConstants.__dataclass_fields__})
 
 
 def eos_pressure(eos: mesa.Eos, T: float, rho: float, comp: mesa.Composition) -> float:

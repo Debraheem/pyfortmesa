@@ -23,6 +23,7 @@ EXPECTED_PUBLIC_API = (
     "SAMPLE_ISOTOPES",
     "composition",
     "composition_info",
+    "composition_info_full",
     "constants",
     "disable_timing",
     "enable_timing",
@@ -67,6 +68,9 @@ DOC_REQUIREMENTS = {
     "docs/modules/const.md": (
         "mesa.constants()",
         "standard_cgrav",
+        "boltz_sigma",
+        "Qconv",
+        "arg_not_provided",
         "crad",
         "Prad =",
         "## Not included",
@@ -74,11 +78,13 @@ DOC_REQUIREMENTS = {
     "docs/modules/chem.md": (
         "mesa.composition(",
         "mesa.composition_info(",
+        "mesa.composition_info_full(",
         "mesa.iso_id(",
         "mesa.iso_ids(",
         "mesa.isotope_index(",
         "mesa.sample_composition(",
         "mesa.Chem()",
+        "Chem().composition_info_full(",
         "## Not included",
     ),
     "docs/modules/eos.md": (
@@ -143,6 +149,15 @@ def test_expected_public_api_is_exported() -> None:
         require(hasattr(mesa, name), f"missing public mesa API: {name}")
 
 
+def test_constant_metadata_matches_wrapper_shape() -> None:
+    names = mesa.MESA_CONSTANT_NAMES
+    require(len(names) == 75, "MESA_CONSTANT_NAMES should match const wrapper shape")
+    require(len(set(names)) == len(names), "MESA_CONSTANT_NAMES contains duplicates")
+
+    for name in ("pi", "avo", "boltz_sigma", "standard_cgrav", "arg_not_provided"):
+        require(name in names, f"MESA_CONSTANT_NAMES missing {name}")
+
+
 def test_public_api_docs_cover_selected_surface() -> None:
     for relative_path, required_strings in DOC_REQUIREMENTS.items():
         path = REPO_ROOT / relative_path
@@ -154,5 +169,6 @@ def test_public_api_docs_cover_selected_surface() -> None:
 
 if __name__ == "__main__":
     test_expected_public_api_is_exported()
+    test_constant_metadata_matches_wrapper_shape()
     test_public_api_docs_cover_selected_surface()
     print("public_api_docs: ok")
