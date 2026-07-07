@@ -1,9 +1,11 @@
-# pyfortmesa [![Repo Status][status-badge]][status-link] [![Version][version-badge]][version-link] [![Docs][docs-badge]][docs-link] [![Python][python-badge]][python-link] [![MESA][mesa-badge]][mesa-link] [![License][license-badge]][license-link]
+# pyfortmesa [![Repo Status][status-badge]][status-link] [![Version][version-badge]][version-link] [![PyPI][pypi-badge]][pypi-link] [![Docs][docs-badge]][docs-link] [![Python][python-badge]][python-link] [![MESA][mesa-badge]][mesa-link] [![License][license-badge]][license-link]
 
 [status-link]: https://www.repostatus.org/#experimental
 [status-badge]: https://img.shields.io/badge/repo_status-experimental-orange.svg
 [version-link]: https://github.com/Debraheem/pyfortmesa/releases/tag/v0.4.0
 [version-badge]: https://img.shields.io/github/v/tag/Debraheem/pyfortmesa?label=version
+[pypi-link]: https://pypi.org/project/pyfortmesa/
+[pypi-badge]: https://img.shields.io/pypi/v/pyfortmesa.svg
 [docs-link]: https://debraheem.github.io/pyfortmesa/
 [docs-badge]: https://github.com/Debraheem/pyfortmesa/actions/workflows/pages.yml/badge.svg?branch=main
 [python-link]: https://www.python.org/
