@@ -220,6 +220,31 @@ def _as_fortran_vector(values: Iterable[float] | Iterable[int], dtype: object) -
     return np.asfortranarray(array)
 
 
+def _prepare_scalar_composition_arrays(
+    chem_id_values: Iterable[int], xa: Iterable[float], *, validate: bool = False
+) -> tuple[np.ndarray, np.ndarray]:
+    chem_id_array = _as_fortran_vector(chem_id_values, np.int32)
+    xa_array = _as_fortran_vector(xa, np.float64)
+
+    if chem_id_array.ndim != 1:
+        raise ValueError("chem_id_values must be one-dimensional")
+    if xa_array.ndim != 1:
+        raise ValueError("xa must be one-dimensional")
+    if chem_id_array.size <= 0:
+        raise ValueError("composition must contain at least one species")
+    if xa_array.shape != chem_id_array.shape:
+        raise ValueError("xa must have the same length as chem_id_values")
+
+    if validate:
+        if np.any(chem_id_array <= 0):
+            raise ValueError("chem_id_values must be positive MESA isotope ids")
+        if not np.all(np.isfinite(xa_array)):
+            raise ValueError("xa values must be finite")
+        if np.any(xa_array < 0.0):
+            raise ValueError("xa values must be non-negative")
+    return chem_id_array, xa_array
+
+
 _PROFILE_INPUT_MODES = {
     "value": 0,
     "values": 0,
@@ -490,6 +515,36 @@ def eos_dt(
     }
 
 
+@_timed_api("eos.dt_raw")
+def eos_dt_raw(
+    T: float,
+    Rho: float,
+    chem_id_values: Iterable[int],
+    xa: Iterable[float],
+    *,
+    validate: bool = False,
+) -> tuple[float, float, float, float, float]:
+    """Evaluate scalar EOS using precomputed composition arrays.
+
+    This skips `Composition` validation and output dictionary construction.
+    The return order is `lnPgas`, `lnE`, `lnS`, `grad_ad`, `gamma1`.
+    """
+    _prepare_mesa_cache_env()
+    chem_id_array, xa_array = _prepare_scalar_composition_arrays(
+        chem_id_values, xa, validate=validate
+    )
+    mesa_eos = _load_mesa_extension("_mesa_eos")
+    values = mesa_eos.mesa_eos_composition(
+        float(T),
+        float(Rho),
+        chem_id_array,
+        xa_array,
+    )
+    lnPgas, lnE, lnS, grad_ad, gamma1, ierr = values
+    _check_ierr("MESA EOS", ierr)
+    return (float(lnPgas), float(lnE), float(lnS), float(grad_ad), float(gamma1))
+
+
 @_timed_api("eos.dt_full")
 def eos_dt_full(
     T: float,
@@ -514,6 +569,37 @@ def eos_dt_full(
     res, d_dlnRho, d_dlnT, d_dxa, ierr = values
     _check_ierr("MESA EOS", ierr)
     return _eos_full_output_dict(composition_data, res, d_dlnRho, d_dlnT, d_dxa)
+
+
+@_timed_api("eos.dt_full_raw")
+def eos_dt_full_raw(
+    T: float,
+    Rho: float,
+    chem_id_values: Iterable[int],
+    xa: Iterable[float],
+    *,
+    validate: bool = False,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Evaluate scalar EOS and return raw result and derivative arrays."""
+    _prepare_mesa_cache_env()
+    chem_id_array, xa_array = _prepare_scalar_composition_arrays(
+        chem_id_values, xa, validate=validate
+    )
+    mesa_eos = _load_mesa_extension("_mesa_eos")
+    values = mesa_eos.mesa_eos_composition_full(
+        float(T),
+        float(Rho),
+        chem_id_array,
+        xa_array,
+    )
+    res, d_dlnRho, d_dlnT, d_dxa, ierr = values
+    _check_ierr("MESA EOS", ierr)
+    return (
+        np.asarray(res, dtype=np.float64),
+        np.asarray(d_dlnRho, dtype=np.float64),
+        np.asarray(d_dlnT, dtype=np.float64),
+        np.asarray(d_dxa, dtype=np.float64),
+    )
 
 
 @_timed_api("eos.dt_profile")
@@ -1053,6 +1139,103 @@ def kap_opacity(
     }
 
 
+@_timed_api("kap.opacity_raw")
+def kap_opacity_raw(
+    T: float,
+    Rho: float,
+    chem_id_values: Iterable[int],
+    xa: Iterable[float],
+    *,
+    validate: bool = False,
+    use_type2: bool | None = None,
+    zbase: float | None = None,
+    use_zbase_for_type1: bool | None = None,
+    type2_full_off_X: float | None = None,
+    type2_full_on_X: float | None = None,
+    type2_full_off_dZ: float | None = None,
+    type2_full_on_dZ: float | None = None,
+) -> tuple[float, float, float]:
+    """Evaluate scalar opacity using precomputed composition arrays."""
+    _prepare_mesa_cache_env()
+    chem_id_array, xa_array = _prepare_scalar_composition_arrays(
+        chem_id_values, xa, validate=validate
+    )
+    controls = _kap_control_args(
+        use_type2=use_type2,
+        zbase=zbase,
+        use_zbase_for_type1=use_zbase_for_type1,
+        type2_full_off_X=type2_full_off_X,
+        type2_full_on_X=type2_full_on_X,
+        type2_full_off_dZ=type2_full_off_dZ,
+        type2_full_on_dZ=type2_full_on_dZ,
+    )
+    mesa_kap = _load_mesa_extension("_mesa_kap")
+    values = mesa_kap.mesa_kap_composition_with_controls(
+        float(T),
+        float(Rho),
+        chem_id_array,
+        xa_array,
+        *controls,
+    )
+    kappa, dlnkap_dlnRho, dlnkap_dlnT, ierr = values
+    _check_ierr("MESA KAP", ierr)
+    return (float(kappa), float(dlnkap_dlnRho), float(dlnkap_dlnT))
+
+
+@_timed_api("kap.eos_kap_raw")
+def eos_kap_raw(
+    T: float,
+    Rho: float,
+    chem_id_values: Iterable[int],
+    xa: Iterable[float],
+    *,
+    validate: bool = False,
+    use_type2: bool | None = None,
+    zbase: float | None = None,
+    use_zbase_for_type1: bool | None = None,
+    type2_full_off_X: float | None = None,
+    type2_full_on_X: float | None = None,
+    type2_full_off_dZ: float | None = None,
+    type2_full_on_dZ: float | None = None,
+) -> tuple[np.ndarray, float, float, float]:
+    """Evaluate scalar EOS and opacity with one Fortran EOS call."""
+    _prepare_mesa_cache_env()
+    chem_id_array, xa_array = _prepare_scalar_composition_arrays(
+        chem_id_values, xa, validate=validate
+    )
+    controls = _kap_control_args(
+        use_type2=use_type2,
+        zbase=zbase,
+        use_zbase_for_type1=use_zbase_for_type1,
+        type2_full_off_X=type2_full_off_X,
+        type2_full_on_X=type2_full_on_X,
+        type2_full_off_dZ=type2_full_off_dZ,
+        type2_full_on_dZ=type2_full_on_dZ,
+    )
+    mesa_kap = _load_mesa_extension("_mesa_kap")
+    values = mesa_kap.mesa_eos_kap_composition_with_controls(
+        float(T),
+        float(Rho),
+        chem_id_array,
+        xa_array,
+        *controls,
+    )
+    res, kappa, dlnkap_dlnRho, dlnkap_dlnT, ierr = values
+    _check_ierr("MESA EOS/KAP", ierr)
+    result_array = np.asarray(res, dtype=np.float64)
+    if result_array.shape != (len(EOS_RESULT_NAMES),):
+        raise RuntimeError(
+            "MESA EOS/KAP scalar wrapper returned EOS result shape "
+            f"{result_array.shape}; expected ({len(EOS_RESULT_NAMES)},)"
+        )
+    return (
+        result_array,
+        float(kappa),
+        float(dlnkap_dlnRho),
+        float(dlnkap_dlnT),
+    )
+
+
 @_timed_api("kap.opacity_full")
 def kap_opacity_full(
     T: float,
@@ -1103,6 +1286,55 @@ def kap_opacity_full(
     }
 
 
+@_timed_api("kap.opacity_full_raw")
+def kap_opacity_full_raw(
+    T: float,
+    Rho: float,
+    chem_id_values: Iterable[int],
+    xa: Iterable[float],
+    *,
+    validate: bool = False,
+    use_type2: bool | None = None,
+    zbase: float | None = None,
+    use_zbase_for_type1: bool | None = None,
+    type2_full_off_X: float | None = None,
+    type2_full_on_X: float | None = None,
+    type2_full_off_dZ: float | None = None,
+    type2_full_on_dZ: float | None = None,
+) -> tuple[float, float, float, np.ndarray, np.ndarray]:
+    """Evaluate scalar opacity and return raw scalar/array outputs."""
+    _prepare_mesa_cache_env()
+    chem_id_array, xa_array = _prepare_scalar_composition_arrays(
+        chem_id_values, xa, validate=validate
+    )
+    controls = _kap_control_args(
+        use_type2=use_type2,
+        zbase=zbase,
+        use_zbase_for_type1=use_zbase_for_type1,
+        type2_full_off_X=type2_full_off_X,
+        type2_full_on_X=type2_full_on_X,
+        type2_full_off_dZ=type2_full_off_dZ,
+        type2_full_on_dZ=type2_full_on_dZ,
+    )
+    mesa_kap = _load_mesa_extension("_mesa_kap")
+    values = mesa_kap.mesa_kap_composition_full_with_controls(
+        float(T),
+        float(Rho),
+        chem_id_array,
+        xa_array,
+        *controls,
+    )
+    kap_fracs, kappa, dlnkap_dlnRho, dlnkap_dlnT, dlnkap_dxa, ierr = values
+    _check_ierr("MESA KAP", ierr)
+    return (
+        float(kappa),
+        float(dlnkap_dlnRho),
+        float(dlnkap_dlnT),
+        np.asarray(kap_fracs, dtype=np.float64),
+        np.asarray(dlnkap_dxa, dtype=np.float64),
+    )
+
+
 class Chem:
     """Small Python handle for MESA CHEM composition calls."""
 
@@ -1150,6 +1382,18 @@ class Eos:
         """Evaluate EOS at temperature `T` in K and density `Rho` in g/cm^3."""
         return eos_dt(T, Rho, comp)
 
+    def dt_raw(
+        self,
+        T: float,
+        Rho: float,
+        chem_id_values: Iterable[int],
+        xa: Iterable[float],
+        *,
+        validate: bool = False,
+    ) -> tuple[float, float, float, float, float]:
+        """Evaluate EOS with precomputed composition arrays."""
+        return eos_dt_raw(T, Rho, chem_id_values, xa, validate=validate)
+
     def dt_full(
         self,
         T: float,
@@ -1158,6 +1402,18 @@ class Eos:
     ) -> dict[str, dict[str, float] | dict[str, dict[str, float]]]:
         """Evaluate EOS and return full result and derivative dictionaries."""
         return eos_dt_full(T, Rho, comp)
+
+    def dt_full_raw(
+        self,
+        T: float,
+        Rho: float,
+        chem_id_values: Iterable[int],
+        xa: Iterable[float],
+        *,
+        validate: bool = False,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Evaluate EOS and return raw result and derivative arrays."""
+        return eos_dt_full_raw(T, Rho, chem_id_values, xa, validate=validate)
 
     def dt_profile(
         self,
@@ -1344,6 +1600,34 @@ class Kap:
         """Evaluate opacity at temperature `T` in K and density `Rho` in g/cm^3."""
         return kap_opacity(T, Rho, comp, **self._controls)
 
+    def opacity_raw(
+        self,
+        T: float,
+        Rho: float,
+        chem_id_values: Iterable[int],
+        xa: Iterable[float],
+        *,
+        validate: bool = False,
+    ) -> tuple[float, float, float]:
+        """Evaluate opacity with precomputed composition arrays."""
+        return kap_opacity_raw(
+            T, Rho, chem_id_values, xa, validate=validate, **self._controls
+        )
+
+    def eos_kap_raw(
+        self,
+        T: float,
+        Rho: float,
+        chem_id_values: Iterable[int],
+        xa: Iterable[float],
+        *,
+        validate: bool = False,
+    ) -> tuple[np.ndarray, float, float, float]:
+        """Evaluate scalar EOS and opacity with one EOS call."""
+        return eos_kap_raw(
+            T, Rho, chem_id_values, xa, validate=validate, **self._controls
+        )
+
     def opacity_full(
         self,
         T: float,
@@ -1352,6 +1636,20 @@ class Kap:
     ) -> dict[str, float | dict[str, float]]:
         """Evaluate opacity and return full result and derivative dictionaries."""
         return kap_opacity_full(T, Rho, comp, **self._controls)
+
+    def opacity_full_raw(
+        self,
+        T: float,
+        Rho: float,
+        chem_id_values: Iterable[int],
+        xa: Iterable[float],
+        *,
+        validate: bool = False,
+    ) -> tuple[float, float, float, np.ndarray, np.ndarray]:
+        """Evaluate opacity and return raw scalar/array outputs."""
+        return kap_opacity_full_raw(
+            T, Rho, chem_id_values, xa, validate=validate, **self._controls
+        )
 
     def opacity_profile(
         self,
@@ -1448,7 +1746,10 @@ __all__ = [
     "disable_timing",
     "enable_timing",
     "eos_dt",
+    "eos_dt_raw",
     "eos_dt_full",
+    "eos_dt_full_raw",
+    "eos_kap_raw",
     "eos_dt_profile",
     "eos_kap_profile_from_logs",
     "eos_kap_profile",
@@ -1464,7 +1765,9 @@ __all__ = [
     "iso_ids",
     "isotope_index",
     "kap_opacity",
+    "kap_opacity_raw",
     "kap_opacity_full",
+    "kap_opacity_full_raw",
     "kap_opacity_profile",
     "kap_opacity_profile_from_logs",
     "format_output_schema",

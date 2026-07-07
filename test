@@ -100,6 +100,7 @@ run_quick() {
       tests/mesa/eos_from_saved_model.py \
       tests/mesa/mesa_mod_profile_reader.py \
       tests/mesa/profile_timing_report.py \
+      tests/mesa/scalar_profile_timing_compare.py \
       tests/work/simple_chem_eos_kap.py \
       tests/unit/test_mesa_profile_helpers.py \
       tests/unit/test_mesa_pkg_config.py \
@@ -119,6 +120,8 @@ run_quick() {
 
   run_case shell_run_eos_from_saved_model bash -n tests/mesa/run_eos_from_saved_model.sh
   run_case shell_run_profile_timing_suite bash -n tests/mesa/run_profile_timing_suite.sh
+  run_case shell_run_scalar_profile_timing_compare \
+    bash -n tests/mesa/run_scalar_profile_timing_compare.sh
   run_case shell_run_simple_work_example bash -n tests/work/run_simple_chem_eos_kap.sh
   run_case no_mesa_summary_dry_run \
     env -u MESA_DIR \

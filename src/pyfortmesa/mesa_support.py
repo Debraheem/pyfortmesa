@@ -17,6 +17,7 @@ import numpy as np
 # MESA environment.
 
 PYFORTMESA_INLIST_ENV = "PYFORTMESA_INLIST"
+_MESA_CACHE_ENV_PREPARED = False
 
 
 def mesa_dir() -> Path:
@@ -46,6 +47,9 @@ def set_cache_root(cache_root: str | os.PathLike[str] | None = ".") -> None:
     `cache_root="."` writes under the current directory. `cache_root=None`
     leaves MESA cache paths at MESA's own defaults.
     """
+    global _MESA_CACHE_ENV_PREPARED
+
+    _MESA_CACHE_ENV_PREPARED = False
     os.environ.pop("MESA_CACHES_DIR", None)
     os.environ.pop("MESA_TEMP_CACHES_DIR", None)
 
@@ -75,8 +79,14 @@ def _inlist_is_set() -> bool:
 
 
 def _prepare_mesa_cache_env() -> None:
+    global _MESA_CACHE_ENV_PREPARED
+
+    if _MESA_CACHE_ENV_PREPARED:
+        return
+
     cache_root = os.environ.get("PYFORTMESA_CACHE_DIR")
     if cache_root is not None and cache_root.lower() in {"mesa_default", "default"}:
+        _MESA_CACHE_ENV_PREPARED = True
         return
 
     if cache_root is None:
@@ -92,6 +102,7 @@ def _prepare_mesa_cache_env() -> None:
     )
     mesa_caches_dir.mkdir(parents=True, exist_ok=True)
     mesa_temp_caches_dir.mkdir(parents=True, exist_ok=True)
+    _MESA_CACHE_ENV_PREPARED = True
 
 
 # Names and result-vector layouts.
@@ -859,7 +870,15 @@ def iso_id(name: str) -> int:
 
 def iso_ids(names: Iterable[str]) -> tuple[int, ...]:
     """Return MESA 1-based `chem_id` values for isotope names."""
-    return tuple(iso_id(name) for name in names)
+    isotope_ids = isotope_index()
+    values: list[int] = []
+    for name in names:
+        normalized = _normalize_isotope_name(name)
+        try:
+            values.append(isotope_ids[normalized])
+        except KeyError as exc:
+            raise ValueError(f"unknown MESA isotope: {name}") from exc
+    return tuple(values)
 
 
 def _prepare_composition(

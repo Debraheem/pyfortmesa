@@ -50,6 +50,33 @@ High-level pyfortmesa public calls are timed by the package timing collector;
 the runner only adds saved-model parsing, array setup, output collection, and
 sweep orchestration.
 
+## Scalar/Profile Comparison
+
+Run the scalar raw loop versus profile wrapper comparison with:
+
+```bash
+tests/mesa/run_scalar_profile_timing_compare.sh
+```
+
+This uses the same saved-model `T/Rho` arrays for both paths and runs two
+composition cases:
+
+```text
+fixed_3  -> h1/he4/c12 = 0.70/0.28/0.02 at every zone
+saved_22 -> the saved model's 22-isotope composition at each zone
+```
+
+The three physics rows are EOS-only, KAP-only, and fused EOS+KAP. The scalar
+`eos-kap` row uses `Kap.eos_kap_raw(...)`, while the profile row uses
+`Kap.eos_kap_profile(...)`.
+
+By default it runs `OMP_NUM_THREADS=1` and `10`. Override with:
+
+```bash
+PYFORTMESA_COMPARE_THREAD_COUNTS="1 2 4 8" \
+  tests/mesa/run_scalar_profile_timing_compare.sh
+```
+
 ## Overrides
 
 `run_profile_timing_suite.sh` has two convenience overrides:

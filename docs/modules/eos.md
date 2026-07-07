@@ -98,6 +98,43 @@ small = mesa.Eos().dt(T=1.0e7, Rho=1.0e2, comp=mix)
 print(small["gamma1"])
 ```
 
+### `mesa.eos_dt_raw(...)` and `mesa.Eos().dt_raw(...)`
+
+Signature:
+
+```python
+mesa.eos_dt_raw(
+    T: float,
+    Rho: float,
+    chem_id_values: Iterable[int],
+    xa: Iterable[float],
+    *,
+    validate: bool = False,
+) -> tuple[float, float, float, float, float]
+```
+
+This is the scalar fast path for a caller that has already prepared the
+composition. It skips `Composition` validation and dictionary construction.
+
+Returns:
+
+```text
+lnPgas, lnE, lnS, grad_ad, gamma1
+```
+
+Example:
+
+```python
+eos = mesa.Eos()
+eos.dt_raw(T=1.0e7, Rho=1.0e2, chem_id_values=mix.chem_id, xa=mix.xa)
+
+for T, rho in scalar_points:
+    lnPgas, lnE, lnS, grad_ad, gamma1 = eos.dt_raw(T, rho, mix.chem_id, mix.xa)
+```
+
+Use `validate=True` when accepting untrusted arrays. Keep it `False` for hot
+loops where `chem_id_values` and `xa` were prepared once by `mesa.composition`.
+
 ### `mesa.eos_dt_full(...)` and `mesa.Eos().dt_full(...)`
 
 Signature:
@@ -137,6 +174,41 @@ full = mesa.Eos().dt_full(T=1.0e7, Rho=1.0e2, comp=mix)
 print(full["results"]["lnPgas"])
 print(full["d_dlnT"]["lnPgas"])
 print(full["d_dxa"]["lnPgas"]["h1"])
+```
+
+### `mesa.eos_dt_full_raw(...)` and `mesa.Eos().dt_full_raw(...)`
+
+Signature:
+
+```python
+mesa.eos_dt_full_raw(
+    T: float,
+    Rho: float,
+    chem_id_values: Iterable[int],
+    xa: Iterable[float],
+    *,
+    validate: bool = False,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+```
+
+Returns raw arrays:
+
+```text
+results, d_dlnRho, d_dlnT, d_dxa
+```
+
+`results`, `d_dlnRho`, and `d_dlnT` use `mesa.EOS_RESULT_NAMES` as row names.
+`d_dxa` has shape `(2, species)` and uses `lnPgas`, `lnE` order for the first
+axis.
+
+Example:
+
+```python
+results, d_dlnRho, d_dlnT, d_dxa = mesa.Eos().dt_full_raw(
+    1.0e7, 1.0e2, mix.chem_id, mix.xa
+)
+i_gamma1 = mesa.EOS_RESULT_NAMES.index("gamma1")
+gamma1 = results[i_gamma1]
 ```
 
 ### `mesa.eos_dt_profile(...)` and `mesa.Eos().dt_profile(...)`

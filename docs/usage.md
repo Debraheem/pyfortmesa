@@ -98,6 +98,46 @@ mesa.Kap(use_type2=True, zbase=...)
   enables MESA Type2 opacity controls for that Python object
 ```
 
+## Scalar hot loops
+
+The ergonomic scalar helpers accept `comp=mix` and return dictionaries. For a
+hot scalar loop where batching is not possible, prepare the composition once and
+call the raw scalar helpers with `mix.chem_id` and `mix.xa`:
+
+```python
+mix = mesa.composition({"h1": 0.70, "he4": 0.28, "c12": 0.02})
+eos = mesa.Eos()
+kap = mesa.Kap()
+
+# Optional warmup: pays table/cache/handle setup before timing.
+eos.dt_raw(1.0e7, 1.0e2, mix.chem_id, mix.xa)
+kap.opacity_raw(1.0e6, 1.0e-7, mix.chem_id, mix.xa)
+
+for T, rho in scalar_points:
+    lnPgas, lnE, lnS, grad_ad, gamma1 = eos.dt_raw(T, rho, mix.chem_id, mix.xa)
+    kappa, dkap_dlnrho, dkap_dlnt = kap.opacity_raw(T, rho, mix.chem_id, mix.xa)
+```
+
+When the same scalar loop needs both EOS and KAP for each point, use the fused
+call so EOS is evaluated once and then passed to KAP:
+
+```python
+kap = mesa.Kap()
+
+# Optional warmup.
+kap.eos_kap_raw(1.0e6, 1.0e-7, mix.chem_id, mix.xa)
+
+for T, rho in scalar_points:
+    results, kappa, dkap_dlnrho, dkap_dlnt = kap.eos_kap_raw(
+        T, rho, mix.chem_id, mix.xa
+    )
+    gamma1 = results[mesa.EOS_RESULT_NAMES.index("gamma1")]
+```
+
+These raw calls skip `Composition` validation and dictionary construction. They
+still cross the Python/F2PY boundary once per point, so profile batching is
+still preferred whenever the caller has many zones or grid points.
+
 ## Profile calls
 
 For profile work, do not call scalar eos or kap once per zone from Python.

@@ -297,7 +297,8 @@ contains
          use_type2_mode, zbase, use_zbase_for_type1_mode, &
          type2_full_off_x, type2_full_on_x, &
          type2_full_off_dz, type2_full_on_dz, &
-         kap_fracs, kappa, dlnkap_dlnRho, dlnkap_dlnT, dlnkap_dxa, ierr)
+         kap_fracs, kappa, dlnkap_dlnRho, dlnkap_dlnT, dlnkap_dxa, ierr, &
+         eos_res)
       real(dp), intent(in) :: T
       real(dp), intent(in) :: Rho
       integer, intent(in) :: species
@@ -316,6 +317,7 @@ contains
       real(dp), intent(out) :: dlnkap_dlnT
       real(dp), intent(out) :: dlnkap_dxa(species)
       integer, intent(out) :: ierr
+      real(dp), intent(out), optional :: eos_res(num_eos_basic_results)
 
       integer, target :: chem_id_store(species)
       integer, allocatable, target :: net_iso_store(:)
@@ -334,6 +336,7 @@ contains
       dlnkap_dlnRho = 0.0_dp
       dlnkap_dlnT = 0.0_dp
       dlnkap_dxa(:) = 0.0_dp
+      if (present(eos_res)) eos_res(:) = 0.0_dp
 
       if (T <= 0.0_dp .or. Rho <= 0.0_dp) then
          ierr = -9
@@ -373,6 +376,8 @@ contains
             res(i_eta), d_dlnd(i_eta), d_dlnT(i_eta), &
             kap_fracs, kappa, dlnkap_dlnRho, dlnkap_dlnT, dlnkap_dxa, ierr)
       end if
+
+      if (ierr == 0 .and. present(eos_res)) eos_res(:) = res(:)
 
       if (allocated(net_iso_store)) deallocate(net_iso_store)
    end subroutine evaluate_kap
@@ -529,6 +534,62 @@ subroutine mesa_kap_composition_with_controls( &
       kap_fracs, kappa, dlnkap_dlnRho, dlnkap_dlnT, dlnkap_dxa, ierr)
 
 end subroutine mesa_kap_composition_with_controls
+
+
+subroutine mesa_eos_kap_composition_with_controls( &
+      T, Rho, species, chem_id_values, xa, &
+      use_type2_mode, zbase, use_zbase_for_type1_mode, &
+      type2_full_off_x, type2_full_on_x, &
+      type2_full_off_dz, type2_full_on_dz, &
+      res, kappa, dlnkap_dlnRho, dlnkap_dlnT, ierr)
+   use const_def, only: dp
+   use eos_def, only: num_eos_basic_results
+   use kap_def, only: num_kap_fracs
+   use pyfortmesa_kap_state, only: evaluate_kap
+
+   implicit none
+
+   integer, parameter :: py_num_eos_basic_results = 26
+
+   real(dp), intent(in) :: T
+   real(dp), intent(in) :: Rho
+   integer, intent(in) :: species
+   integer, intent(in) :: chem_id_values(species)
+   real(dp), intent(in) :: xa(species)
+   integer, intent(in) :: use_type2_mode
+   real(dp), intent(in) :: zbase
+   integer, intent(in) :: use_zbase_for_type1_mode
+   real(dp), intent(in) :: type2_full_off_x
+   real(dp), intent(in) :: type2_full_on_x
+   real(dp), intent(in) :: type2_full_off_dz
+   real(dp), intent(in) :: type2_full_on_dz
+   real(dp), intent(out) :: res(py_num_eos_basic_results)
+   real(dp), intent(out) :: kappa
+   real(dp), intent(out) :: dlnkap_dlnRho
+   real(dp), intent(out) :: dlnkap_dlnT
+   integer, intent(out) :: ierr
+
+   real(dp) :: kap_fracs(num_kap_fracs)
+   real(dp) :: dlnkap_dxa(species)
+
+   res(:) = 0.0_dp
+   kappa = 0.0_dp
+   dlnkap_dlnRho = 0.0_dp
+   dlnkap_dlnT = 0.0_dp
+
+   if (num_eos_basic_results /= py_num_eos_basic_results) then
+      ierr = -4
+      return
+   end if
+
+   call evaluate_kap( &
+      T, Rho, species, chem_id_values, xa, &
+      use_type2_mode, zbase, use_zbase_for_type1_mode, &
+      type2_full_off_x, type2_full_on_x, &
+      type2_full_off_dz, type2_full_on_dz, &
+      kap_fracs, kappa, dlnkap_dlnRho, dlnkap_dlnT, dlnkap_dxa, ierr, res)
+
+end subroutine mesa_eos_kap_composition_with_controls
 
 
 subroutine mesa_kap_composition_full_with_controls( &

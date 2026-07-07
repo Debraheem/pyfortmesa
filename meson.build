@@ -135,6 +135,7 @@ if with_mesa
         'mesa_kap_composition_full',
         'mesa_kap_composition_with_controls',
         'mesa_kap_composition_full_with_controls',
+        'mesa_eos_kap_composition_with_controls',
         'mesa_kap_profile',
         'mesa_kap_profile_from_logs',
         'mesa_eos_kap_profile',

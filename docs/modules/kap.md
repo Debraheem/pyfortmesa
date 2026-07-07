@@ -103,6 +103,96 @@ small = mesa.Kap().opacity(T=1.0e6, Rho=1.0e-7, comp=mix)
 print(small["kappa"])
 ```
 
+### `mesa.kap_opacity_raw(...)` and `mesa.Kap().opacity_raw(...)`
+
+Signature:
+
+```python
+mesa.kap_opacity_raw(
+    T: float,
+    Rho: float,
+    chem_id_values: Iterable[int],
+    xa: Iterable[float],
+    *,
+    validate: bool = False,
+    use_type2: bool | None = None,
+    zbase: float | None = None,
+    use_zbase_for_type1: bool | None = None,
+    type2_full_off_X: float | None = None,
+    type2_full_on_X: float | None = None,
+    type2_full_off_dZ: float | None = None,
+    type2_full_on_dZ: float | None = None,
+) -> tuple[float, float, float]
+```
+
+This is the scalar fast path for callers with precomputed `chem_id_values` and
+`xa`. It returns:
+
+```text
+kappa, dlnkap_dlnRho, dlnkap_dlnT
+```
+
+Example:
+
+```python
+kap = mesa.Kap()
+kap.opacity_raw(T=1.0e6, Rho=1.0e-7, chem_id_values=mix.chem_id, xa=mix.xa)
+
+for T, rho in scalar_points:
+    kappa, dkap_dlnrho, dkap_dlnt = kap.opacity_raw(T, rho, mix.chem_id, mix.xa)
+```
+
+Use `validate=True` when accepting untrusted arrays. Keep it `False` for hot
+loops where `chem_id_values` and `xa` were prepared once by `mesa.composition`.
+
+### `mesa.eos_kap_raw(...)` and `mesa.Kap().eos_kap_raw(...)`
+
+Signature:
+
+```python
+mesa.eos_kap_raw(
+    T: float,
+    Rho: float,
+    chem_id_values: Iterable[int],
+    xa: Iterable[float],
+    *,
+    validate: bool = False,
+    use_type2: bool | None = None,
+    zbase: float | None = None,
+    use_zbase_for_type1: bool | None = None,
+    type2_full_off_X: float | None = None,
+    type2_full_on_X: float | None = None,
+    type2_full_off_dZ: float | None = None,
+    type2_full_on_dZ: float | None = None,
+) -> tuple[np.ndarray, float, float, float]
+```
+
+This is the scalar fused EOS+KAP fast path. It calls EOS once, returns the EOS
+result vector, and passes the electron state from that EOS call to KAP.
+
+Returns:
+
+```text
+results, kappa, dlnkap_dlnRho, dlnkap_dlnT
+```
+
+`results` uses `mesa.EOS_RESULT_NAMES` order.
+
+Example:
+
+```python
+kap = mesa.Kap()
+results, kappa, dkap_dlnrho, dkap_dlnt = kap.eos_kap_raw(
+    T=1.0e6, Rho=1.0e-7, chem_id_values=mix.chem_id, xa=mix.xa
+)
+
+i_gamma1 = mesa.EOS_RESULT_NAMES.index("gamma1")
+gamma1 = results[i_gamma1]
+```
+
+Use this instead of calling `eos.dt_raw(...)` and `kap.opacity_raw(...)` when a
+scalar loop needs both EOS and KAP outputs for the same state.
+
 ### `mesa.kap_opacity_full(...)` and `mesa.Kap().opacity_full(...)`
 
 Signature:
@@ -148,6 +238,45 @@ kap_type2 = mesa.Kap(use_type2=True, zbase=0.02)
 full = kap_type2.opacity_full(T=1.0e6, Rho=1.0e-7, comp=mix)
 print(full["kap_fracs"]["Type2"])
 print(full["dlnkap_dxa"]["h1"])
+```
+
+### `mesa.kap_opacity_full_raw(...)` and `mesa.Kap().opacity_full_raw(...)`
+
+Signature:
+
+```python
+mesa.kap_opacity_full_raw(
+    T: float,
+    Rho: float,
+    chem_id_values: Iterable[int],
+    xa: Iterable[float],
+    *,
+    validate: bool = False,
+    use_type2: bool | None = None,
+    zbase: float | None = None,
+    use_zbase_for_type1: bool | None = None,
+    type2_full_off_X: float | None = None,
+    type2_full_on_X: float | None = None,
+    type2_full_off_dZ: float | None = None,
+    type2_full_on_dZ: float | None = None,
+) -> tuple[float, float, float, np.ndarray, np.ndarray]
+```
+
+Returns:
+
+```text
+kappa, dlnkap_dlnRho, dlnkap_dlnT, kap_fracs, dlnkap_dxa
+```
+
+`kap_fracs` uses `mesa.KAP_FRAC_NAMES` order. `dlnkap_dxa` follows the input
+`chem_id_values`/`xa` species order.
+
+Example:
+
+```python
+kappa, dkap_dlnrho, dkap_dlnt, kap_fracs, dkap_dxa = mesa.Kap(
+    use_type2=True, zbase=0.02
+).opacity_full_raw(1.0e6, 1.0e-7, mix.chem_id, mix.xa)
 ```
 
 ### `mesa.kap_opacity_profile(...)` and `mesa.Kap().opacity_profile(...)`
@@ -340,6 +469,7 @@ Fortran wrappers:
 ```text
 mesa_kap_composition_with_controls -> kap_get
 mesa_kap_composition_full_with_controls -> kap_get
+mesa_eos_kap_composition_with_controls -> eos and kap_get once per scalar point
 mesa_kap_profile -> eos state then kap_get once per profile zone
 mesa_kap_profile_from_logs -> compatibility wrapper for natural-log inputs
 mesa_eos_kap_profile -> eos and kap_get once per profile zone

@@ -51,6 +51,18 @@ def main() -> int:
             "shape mismatch",
             lambda: kap.eos_kap_profile([1.0e6, 2.0e6], [1.0], chem_id, xa),
         ),
+        expect_value_error(
+            "raw shape mismatch",
+            lambda: eos.dt_raw(1.0e6, 1.0, chem_id, [0.70]),
+        ),
+        expect_value_error(
+            "raw validation",
+            lambda: kap.opacity_raw(1.0e6, 1.0, chem_id, [-0.10, 1.10], validate=True),
+        ),
+        expect_value_error(
+            "combined raw validation",
+            lambda: kap.eos_kap_raw(1.0e6, 1.0, chem_id, [-0.10, 1.10], validate=True),
+        ),
     ]
     return 0 if all(checks) else 1
 
