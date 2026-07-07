@@ -83,7 +83,7 @@ def test_pkg_config_path_error_mentions_shared_mesa():
                 raise AssertionError("pkg_config_path should fail without mesa-*.pc files")
 
     assert "No MESA pkg-config files" in message
-    assert "USE_SHARED=yes" in message
+    assert "USE_SHARED = YES" in message
     assert "lib/pkgconfig" in message
     assert "build/*/lib/pkgconfig" in message
 

@@ -132,9 +132,9 @@ when switching between builds or changing `MESA_DIR`.
 
 MESA must be built with shared module libraries. A current MESA development
 tree usually has this already. For a release tree, check
-`$MESA_DIR/utils/makefile_header`; if it says `USE_SHARED=no`, set
-`USE_SHARED=yes`, then rebuild MESA with `./clean` and `./install`. Static-only
-MESA builds are not supported.
+`$MESA_DIR/utils/makefile_header`; if it says `USE_SHARED = NO`, set
+`USE_SHARED = YES`, then rebuild MESA with `./clean` and `./install`.
+Static-only MESA builds are not supported.
 
 `./mk mesa` finds the MESA pkg-config files under `MESA_DIR`, sets
 `PKG_CONFIG_PATH` for this build, and writes `dist/pyfortmesa-*.whl`.

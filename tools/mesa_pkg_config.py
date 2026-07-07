@@ -54,7 +54,7 @@ def pkg_config_path() -> str:
             "No MESA pkg-config files were found.\n"
             f"Searched:\n  {searched}\n"
             "pyfortmesa needs a MESA build with shared module libraries. "
-            "For release trees with USE_SHARED=no, set USE_SHARED=yes in "
+            "For release trees with USE_SHARED = NO, set USE_SHARED = YES in "
             "$MESA_DIR/utils/makefile_header and rebuild MESA."
         )
     return os.pathsep.join(str(path) for path in paths)

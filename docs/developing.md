@@ -198,13 +198,13 @@ The build expects:
 ```text
 MESASDK_ROOT -> the MESA SDK location, for compiler and runtime tools
 MESA_DIR     -> the MESA checkout to link against
-USE_SHARED   -> yes, so MESA provides shared module libraries
+USE_SHARED   -> YES, so MESA provides shared module libraries
 ```
 
 A current MESA development tree usually has the shared-library build layout.
 For a release tree, check `$MESA_DIR/utils/makefile_header`; if it says
-`USE_SHARED=no`, set `USE_SHARED=yes`, then rebuild MESA with `./clean` and
-`./install`. Static-only MESA builds are not supported by this package.
+`USE_SHARED = NO`, set `USE_SHARED = YES`, then rebuild MESA with `./clean`
+and `./install`. Static-only MESA builds are not supported by this package.
 
 The build also expects four MESA pkg-config files. These are small `.pc` text
 files that tell the compiler where the MESA shared libraries and module files

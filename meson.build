@@ -65,6 +65,19 @@ if with_mesa
   mesa_eos_source = files('src/pyfortmesa/fortran/eos/mesa_eos_public.f90')
   mesa_kap_source = files('src/pyfortmesa/fortran/kap/mesa_kap_public.f90')
 
+  mesa_pkg_config_path = run_command(
+    py,
+    [mesa_pkg_config_helper, 'path'],
+    check : false,
+  )
+  if mesa_pkg_config_path.returncode() != 0
+    mesa_pkg_config_error = mesa_pkg_config_path.stderr().strip()
+    if mesa_pkg_config_error == ''
+      mesa_pkg_config_error = mesa_pkg_config_path.stdout().strip()
+    endif
+    error(mesa_pkg_config_error)
+  endif
+
   mesa_const_cflags = run_command(
     py,
     [mesa_pkg_config_helper, 'cflags', 'mesa-const'],
