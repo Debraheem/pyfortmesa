@@ -506,45 +506,45 @@ The automatic path is the normal release path. The workflow file is:
 .github/workflows/pypi.yml
 ```
 
-It runs when a tag like `v0.4.0` or `v0.4.1` is pushed. The workflow
+It runs when a tag like `v0.5.0` or `v0.5.1` is pushed. The workflow
 runs `./test`, builds with `./mk all`, checks the distributions with `twine`,
 and uploads `dist/*` to PyPI using the GitHub secret `PYPI_API_TOKEN`.
 
-Use release branches for PyPI releases. A branch like `release/v0.4` is an
-editable maintenance line. A tag like `v0.4.0` points to one exact commit and
+Use release branches for PyPI releases. A branch like `release/v0.5` is an
+editable maintenance line. A tag like `v0.5.0` points to one exact commit and
 is what triggers the PyPI workflow.
 
-For the first `0.4.0` release, make the release branch from a clean `main`, then
+For the first `0.5.0` release, make the release branch from a clean `main`, then
 point the tag at that branch:
 
 ```bash
 git switch main
 git pull --ff-only origin main
-git switch -c release/v0.4
-git push origin release/v0.4
-git tag -f v0.4.0 release/v0.4
-git push --force origin v0.4.0
+git switch -c release/v0.5
+git push origin release/v0.5
+git tag v0.5.0 release/v0.5
+git push origin v0.5.0
 ```
 
 That tag push triggers `.github/workflows/pypi.yml`. No branch trigger is
 needed for publishing. Tags are global refs, so a pushed `v*` tag triggers the
-PyPI workflow whether the tagged commit is on `main` or on `release/v0.4`.
+PyPI workflow whether the tagged commit is on `main` or on `release/v0.5`.
 
-For a later fix on the same release line, commit to `release/v0.4`, bump the
+For a later fix on the same release line, commit to `release/v0.5`, bump the
 version in `pyproject.toml`, then make a new tag:
 
 ```bash
-git switch release/v0.4
-# edit files and bump pyproject.toml to 0.4.1
-git commit -am "release 0.4.1"
-git tag v0.4.1 release/v0.4
-git push origin release/v0.4
-git push origin v0.4.1
+git switch release/v0.5
+# edit files and bump pyproject.toml to 0.5.1
+git commit -am "release 0.5.1"
+git tag v0.5.1 release/v0.5
+git push origin release/v0.5
+git push origin v0.5.1
 ```
 
 Do not move a tag after PyPI has accepted that version. PyPI files are
 immutable by version; bump the version instead. After the release tag succeeds,
-switch back to `main` for normal development. Keep `release/v0.4` for `0.4.x`
+switch back to `main` for normal development. Keep `release/v0.5` for `0.5.x`
 patches only.
 
 Use a PyPI API token stored in GitHub, not in the repo. The simplest setup

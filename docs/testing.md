@@ -64,7 +64,7 @@ Environment:
 
 ```text
 MESA_DIR=/Users/owner/Documents/Software/dev/mesa_release/mesa
-pyfortmesa-0.4.0-cp311-cp311-macosx_26_0_arm64.whl
+pyfortmesa-0.5.0-cp311-cp311-macosx_26_0_arm64.whl
 ```
 
 The scalar/profile comparison uses 884 zones from:

@@ -23,7 +23,7 @@ python -m pip install pyfortmesa
 To install an exact source tag from GitHub instead:
 
 ```bash
-python -m pip install "git+https://github.com/Debraheem/pyfortmesa.git@v0.4.0"
+python -m pip install "git+https://github.com/Debraheem/pyfortmesa.git@v0.5.0"
 ```
 
 Or install from a local checkout:

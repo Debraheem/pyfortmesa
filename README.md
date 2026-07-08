@@ -2,7 +2,7 @@
 
 [status-link]: https://www.repostatus.org/#active
 [status-badge]: https://www.repostatus.org/badges/latest/active.svg
-[version-link]: https://github.com/Debraheem/pyfortmesa/releases/tag/v0.4.0
+[version-link]: https://github.com/Debraheem/pyfortmesa/releases/tag/v0.5.0
 [version-badge]: https://img.shields.io/github/v/tag/Debraheem/pyfortmesa?label=version
 [pypi-link]: https://pypi.org/project/pyfortmesa/
 [pypi-badge]: https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fpypi.org%2Fpypi%2Fpyfortmesa%2Fjson&query=%24.info.version&label=pypi
@@ -80,7 +80,7 @@ python -m pip install pyfortmesa
 To install an exact source tag from GitHub instead:
 
 ```bash
-python -m pip install "git+https://github.com/Debraheem/pyfortmesa.git@v0.4.0"
+python -m pip install "git+https://github.com/Debraheem/pyfortmesa.git@v0.5.0"
 ```
 
 Or install from a local checkout:
@@ -334,7 +334,7 @@ If you use `pyfortmesa`, please cite it as:
   author = {Farag, Ebraheem},
   title = {{pyfortmesa}},
   url = {https://github.com/Debraheem/pyfortmesa},
-  version = {0.4.0},
+  version = {0.5.0},
   year = {2026}
 }
 ```

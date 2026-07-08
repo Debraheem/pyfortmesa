@@ -1,6 +1,6 @@
 project(
   'pyfortmesa',
-  version : '0.4.0',
+  version : '0.5.0',
   license : 'LGPL-3.0-only',
   meson_version : '>=1.1.0',
   default_options : ['warning_level=2'],
