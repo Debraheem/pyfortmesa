@@ -270,7 +270,6 @@ mesa.set_inlist("inlist_eos_and_kap")
 isotope_names = ("h1", "he4", "c12")
 chem_id_values = mesa.iso_ids(isotope_names)
 kap = mesa.Kap()
-i_gamma1 = mesa.EOS_RESULT_NAMES.index("gamma1")
 
 
 def profile_xa(xa_by_zone):
@@ -281,14 +280,16 @@ def profile_xa(xa_by_zone):
 
 try:
     for T, rho, xa_by_zone in profiles:
-        out = kap.eos_kap_profile(T, rho, chem_id_values, profile_xa(xa_by_zone))
-        gamma1 = out["results"][i_gamma1, :]
+        out = kap.eos_kap_profile(
+            T, rho, chem_id_values, profile_xa(xa_by_zone), output="dict"
+        )
+        gamma1 = out["results"]["gamma1"]
         kappa = out["kappa"]
 finally:
     mesa.shutdown()
 ```
 
-For a fixed-composition EOS profile on an arbitrary base-10 `logT`/`logRho`
+For a fixed-composition eos profile on an arbitrary base-10 `logT`/`logRho`
 track, build one `Composition` and pass its 1D `xa` vector. The wrapper
 broadcasts fixed compositions over zones. Use `input_mode="log10"` when the
 arrays are base-10 logs:
@@ -302,18 +303,24 @@ mix = mesa.composition({"h1": 0.70, "he4": 0.28, "c12": 0.02})
 out = mesa.Eos().dt_profile(log_T, log_rho, mix.chem_id, mix.xa, input_mode="log10")
 ```
 
-For KAP profile work, choose points in a valid opacity-table region. A common
-base-10 coordinate is `logR = logRho - 3*logT + 18`:
+For kap profile work with physical arrays, pass the temperature and density
+profiles directly:
 
 ```python
-log_T = np.linspace(3.75, 8.0, 1000)
-log_R = np.full_like(log_T, -3.0)
-log_rho = log_R + 3.0*log_T - 18.0
-
-T = 10.0**log_T
-rho = 10.0**log_rho
+T = np.linspace(6.0e5, 2.5e6, 1000)
+rho = np.full_like(T, 1.0e-7)
 
 out = mesa.Kap().eos_kap_profile(T, rho, mix.chem_id, mix.xa)
+```
+
+If the caller already stores base-10 `logT` and `logRho`, pass those arrays
+directly and set `input_mode="log10"`:
+
+```python
+log_T = np.linspace(5.8, 6.4, 1000)
+log_rho = np.full_like(log_T, -7.0)
+
+out = mesa.Kap().eos_kap_profile(log_T, log_rho, mix.chem_id, mix.xa, input_mode="log10")
 ```
 
 Use `input_mode="log"` for natural-log arrays and `input_mode="log10"` for

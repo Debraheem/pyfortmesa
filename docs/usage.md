@@ -118,8 +118,8 @@ for T, rho in scalar_points:
     kappa, dkap_dlnrho, dkap_dlnt = kap.opacity_raw(T, rho, mix.chem_id, mix.xa)
 ```
 
-When the same scalar loop needs both EOS and KAP for each point, use the fused
-call so EOS is evaluated once and then passed to KAP:
+When the same scalar loop needs both eos and kap for each point, use the fused
+call so eos is evaluated once and then passed to kap:
 
 ```python
 kap = mesa.Kap()
@@ -164,8 +164,6 @@ mesa.set_inlist("inlist_eos_and_kap")
 isotope_names = ("h1", "he4", "c12")
 chem_id_values = mesa.iso_ids(isotope_names)
 kap = mesa.Kap()
-i_lnPgas = mesa.EOS_RESULT_NAMES.index("lnPgas")
-i_gamma1 = mesa.EOS_RESULT_NAMES.index("gamma1")
 
 
 def profile_xa(xa_by_zone):
@@ -189,10 +187,10 @@ try:
         xa = profile_xa(xa_by_zone)
 
         # combined eos+kap: one eos call per zone, then kap uses that state.
-        output = kap.eos_kap_profile(T, rho, chem_id_values, xa)
+        output = kap.eos_kap_profile(T, rho, chem_id_values, xa, output="dict")
 
-        lnPgas = output["results"][i_lnPgas, :]
-        gamma1 = output["results"][i_gamma1, :]
+        lnPgas = output["results"]["lnPgas"]
+        gamma1 = output["results"]["gamma1"]
         kappa = output["kappa"]
 finally:
     mesa.shutdown()
@@ -202,7 +200,7 @@ Profile helpers take the composition in split form: `chem_id_values` gives the
 isotope order, and `xa` gives either one fixed composition with shape
 `(species,)` or zone mass fractions with shape `(species, nzones)`.
 
-For a fixed-composition EOS profile on an arbitrary base-10 `logT`/`logRho`
+For a fixed-composition eos profile on an arbitrary base-10 `logT`/`logRho`
 track, build one `Composition` and pass its 1D `xa` vector. Use
 `input_mode="log10"` when the arrays are base-10 logs:
 
@@ -215,18 +213,24 @@ mix = mesa.composition({"h1": 0.70, "he4": 0.28, "c12": 0.02})
 output = mesa.Eos().dt_profile(log_T, log_rho, mix.chem_id, mix.xa, input_mode="log10")
 ```
 
-For KAP profile work, choose points in a valid opacity-table region. A common
-base-10 coordinate is `logR = logRho - 3*logT + 18`:
+For kap profile work with physical arrays, pass the temperature and density
+profiles directly:
 
 ```python
-log_T = np.linspace(3.75, 8.0, 1000)
-log_R = np.full_like(log_T, -3.0)
-log_rho = log_R + 3.0*log_T - 18.0
-
-T = 10.0**log_T
-rho = 10.0**log_rho
+T = np.linspace(6.0e5, 2.5e6, 1000)
+rho = np.full_like(T, 1.0e-7)
 
 output = mesa.Kap().eos_kap_profile(T, rho, mix.chem_id, mix.xa)
+```
+
+If the caller already stores base-10 `logT` and `logRho`, pass those arrays
+directly and set `input_mode="log10"`:
+
+```python
+log_T = np.linspace(5.8, 6.4, 1000)
+log_rho = np.full_like(log_T, -7.0)
+
+output = mesa.Kap().eos_kap_profile(log_T, log_rho, mix.chem_id, mix.xa, input_mode="log10")
 ```
 
 Use `input_mode="log"` for natural-log arrays and `input_mode="log10"` for

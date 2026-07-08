@@ -4,7 +4,7 @@ Run after installing with `./mk mesa`:
 
     tests/mesa/run_hydrostatic_structure.sh --with-mesa
 
-This is a toy solver. It prints the input composition, MESA constants, CHEM
+This is a toy solver. It prints the input composition, MESA constants, chem
 output, and the first/last shells from a simple spherical hydrostatic structure
 problem. It is not a MESA star model.
 """
@@ -52,7 +52,7 @@ def load_mesa_constants() -> MesaConstants:
 
 
 def eos_pressure(eos: mesa.Eos, T: float, rho: float, comp: mesa.Composition) -> float:
-    """Return MESA EOS pressure at fixed T and rho."""
+    """Return MESA eos pressure at fixed T and rho."""
     return math.exp(eos.dt(T, rho, comp)["lnPgas"])
 
 
@@ -63,7 +63,7 @@ def estimate_rho_for_pressure(
     comp: mesa.Composition,
     rho_guess: float,
 ) -> float:
-    """Use the MESA EOS to estimate rho such that Pgas(T, rho) = P."""
+    """Use the MESA eos to estimate rho such that Pgas(T, rho) = P."""
     solution = eos.solve_rho(
         T=T,
         other="lnPgas",
@@ -75,7 +75,7 @@ def estimate_rho_for_pressure(
     P_eos = math.exp(solution["results"]["lnPgas"])
     rel_err = abs(P_eos - P) / P
     if rel_err > 5.0e-3:
-        raise RuntimeError(f"EOS closure error too large: {rel_err:.3e}")
+        raise RuntimeError(f"eos closure error too large: {rel_err:.3e}")
 
     return rho
 
@@ -86,7 +86,7 @@ def solve_toy_hydrostatic_star(
     composition: mesa.Composition | None = None,
     constants: MesaConstants | None = None,
 ) -> list[Shell]:
-    """Integrate a low-luminosity toy star using MESA EOS and KAP calls."""
+    """Integrate a low-luminosity toy star using MESA eos and kap calls."""
     if composition is None:
         composition = mesa.composition({"h1": 0.70, "he4": 0.28, "c12": 0.02})
     if constants is None:
@@ -109,7 +109,7 @@ def solve_toy_hydrostatic_star(
     profile: list[Shell] = []
 
     for _ in range(zones + 1):
-        # KAP at this shell; KAP gets its electron state from EOS.
+        # kap at this shell; kap gets its electron state from eos.
         kap_result = kap.opacity(T, rho, composition)
         kappa = kap_result["kappa"]
         luminosity = total_luminosity * min(m / luminosity_mass_scale, 1.0)
@@ -146,7 +146,7 @@ def solve_toy_hydrostatic_star(
             raise RuntimeError("toy hydrostatic integration stepped below zero")
 
         rho_guess = rho * (P_next / P) * (T / T_next)
-        # Close the step with rho(P,T) from EOS.
+        # Close the step with rho(P,T) from eos.
         rho_next = estimate_rho_for_pressure(
             eos,
             T_next,

@@ -82,8 +82,8 @@ saved_22 -> the saved model's 22-isotope composition at each zone
 
 The table reports hot-call time after MESA table/cache/handle setup. A
 `scalar/profile` ratio greater than 1 means the profile wrapper is faster. The
-`eos-kap` scalar row uses `Kap.eos_kap_raw(...)`, so EOS is evaluated once per
-scalar point before KAP. That is the scalar analogue of the profile
+`eos-kap` scalar row uses `Kap.eos_kap_raw(...)`, so eos is evaluated once per
+scalar point before kap. That is the scalar analogue of the profile
 `Kap.eos_kap_profile(...)` path.
 
 | case | physics | species | threads | scalar | profile | scalar/profile |

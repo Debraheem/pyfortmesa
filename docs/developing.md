@@ -87,7 +87,7 @@ extension modules. In a running Python job, a typical fast eos/kap path is:
    the zone loop runs inside the Fortran wrapper.
 5. OpenMP parallelizes that Fortran zone loop when `OMP_NUM_THREADS` is set
    before Python starts.
-6. Kap calls require EOS electron-state quantities (`lnfree_e` and `eta`), so
+6. Kap calls require eos electron-state quantities (`lnfree_e` and `eta`), so
    kap timings include the required internal eos call. When both eos and kap are
    needed, use `mesa.Kap().eos_kap_profile(...)` so eos is computed once per
    zone and then passed to kap.
@@ -106,7 +106,7 @@ tests/mesa/eos_from_saved_model.py
 
 ## Output schemas
 
-Use `mesa.output_schema(...)` when you want the expected EOS/KAP output layout
+Use `mesa.output_schema(...)` when you want the expected eos/kap output layout
 without making a MESA call. The helper returns plain Python rows with `column`,
 `path`, `units`, `shape`, and `comment` keys. This is useful when deciding the
 columns for a DataFrame or checking nested output dictionaries.

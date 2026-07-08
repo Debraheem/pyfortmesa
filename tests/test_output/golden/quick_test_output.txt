@@ -131,6 +131,6 @@ output:
 == syntax check
 == saved-model parse check
 skipped parse check: MESA_DIR is not set; pass --model or export MESA_DIR
-skipped MESA run: pass --with-mesa to call EOS
+skipped MESA run: pass --with-mesa to call eos
 
 status: ok

@@ -66,7 +66,7 @@ fixed_3  -> h1/he4/c12 = 0.70/0.28/0.02 at every zone
 saved_22 -> the saved model's 22-isotope composition at each zone
 ```
 
-The three physics rows are EOS-only, KAP-only, and fused EOS+KAP. The scalar
+The three physics rows are eos-only, kap-only, and fused eos+kap. The scalar
 `eos-kap` row uses `Kap.eos_kap_raw(...)`, while the profile row uses
 `Kap.eos_kap_profile(...)`.
 

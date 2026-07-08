@@ -152,7 +152,7 @@ Python output order is defined by `MESA_CONSTANT_NAMES` in
 
 - `crad` is the radiation density constant `a`, not radiation pressure itself.
   Use `Prad = crad*T**4/3`.
-- MESA EOS output `lnPgas` is gas pressure. Add `Prad` yourself when you want
+- MESA `eos` output `lnPgas` is gas pressure. Add `Prad` yourself when you want
   total pressure.
 - All physical constants returned here use cgs/MESA units.
 

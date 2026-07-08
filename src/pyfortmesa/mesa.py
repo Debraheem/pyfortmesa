@@ -20,6 +20,13 @@ from .mesa_support import (
     KAP_FRAC_NAMES,
     MESA_CONSTANT_NAMES,
     SAMPLE_ISOTOPES,
+    eos_dxa_result_names,
+    eos_result_index,
+    eos_result_names,
+    kap_control_unset,
+    kap_frac_names,
+    mesa_constant_names,
+    sample_isotopes,
     _check_ierr,
     _eos_result_index,
     _inlist_is_set,
@@ -67,13 +74,13 @@ def constants() -> dict[str, float]:
 def shutdown(*, release_tables: bool = False) -> None:
     """Release persistent MESA state held by pyfortmesa wrappers.
 
-    By default this frees the EOS/KAP handles owned by pyfortmesa and leaves
+    By default this frees the eos/kap handles owned by pyfortmesa and leaves
     MESA's loaded tables available for reuse in the same Python process. Pass
     `release_tables=True` only when no other code in the process is using MESA.
     """
     for label, module_name, function_name in (
-        ("MESA KAP shutdown", "_mesa_kap", "mesa_kap_shutdown"),
-        ("MESA EOS shutdown", "_mesa_eos", "mesa_eos_shutdown"),
+        ("MESA kap shutdown", "_mesa_kap", "mesa_kap_shutdown"),
+        ("MESA eos shutdown", "_mesa_eos", "mesa_eos_shutdown"),
     ):
         try:
             module = _load_mesa_extension(module_name)
@@ -392,7 +399,7 @@ def _eos_profile_output(
     result_array = np.asarray(res, dtype=np.float64)
     if result_array.shape != (len(EOS_RESULT_NAMES), nzones):
         raise RuntimeError(
-            "MESA EOS profile wrapper returned result shape "
+            "MESA eos profile wrapper returned result shape "
             f"{result_array.shape}; expected ({len(EOS_RESULT_NAMES)}, {nzones})"
         )
 
@@ -421,7 +428,7 @@ def _eos_kap_profile_output(
     result_array = np.asarray(res, dtype=np.float64)
     if result_array.shape != (len(EOS_RESULT_NAMES), nzones):
         raise RuntimeError(
-            "MESA EOS/KAP profile wrapper returned EOS result shape "
+            "MESA eos/kap profile wrapper returned eos result shape "
             f"{result_array.shape}; expected ({len(EOS_RESULT_NAMES)}, {nzones})"
         )
 
@@ -460,12 +467,12 @@ def _eos_solve_profile_output(
     d_dxa_array = np.asarray(d_dxa, dtype=np.float64)
     if result_array.shape != (len(EOS_RESULT_NAMES), nzones):
         raise RuntimeError(
-            "MESA EOS solve profile wrapper returned result shape "
+            "MESA eos solve profile wrapper returned result shape "
             f"{result_array.shape}; expected ({len(EOS_RESULT_NAMES)}, {nzones})"
         )
     if d_dxa_array.shape != (len(EOS_DXA_RESULT_NAMES), species, nzones):
         raise RuntimeError(
-            "MESA EOS solve profile wrapper returned d_dxa shape "
+            "MESA eos solve profile wrapper returned d_dxa shape "
             f"{d_dxa_array.shape}; expected "
             f"({len(EOS_DXA_RESULT_NAMES)}, {species}, {nzones})"
         )
@@ -489,11 +496,11 @@ def eos_dt(
     Rho: float,
     comp: Composition | Mapping[str, float] | Iterable[float] | None = None,
 ) -> dict[str, float]:
-    """Evaluate MESA EOS at known `T`, `Rho`, and composition.
+    """Evaluate MESA eos at known `T`, `Rho`, and composition.
 
     Inputs are temperature in K, density in g/cm^3, and mass fractions. Outputs
     are `lnPgas`, `lnE`, `lnS`, `grad_ad`, and `gamma1`; logarithmic quantities
-    are natural logs of MESA's cgs EOS quantities.
+    are natural logs of MESA's cgs eos quantities.
     """
     _prepare_mesa_cache_env()
     composition_data = _prepare_composition(comp)
@@ -505,7 +512,7 @@ def eos_dt(
         composition_data.xa,
     )
     lnPgas, lnE, lnS, grad_ad, gamma1, ierr = values
-    _check_ierr("MESA EOS", ierr)
+    _check_ierr("MESA eos", ierr)
     return {
         "lnPgas": float(lnPgas),
         "lnE": float(lnE),
@@ -524,7 +531,7 @@ def eos_dt_raw(
     *,
     validate: bool = False,
 ) -> tuple[float, float, float, float, float]:
-    """Evaluate scalar EOS using precomputed composition arrays.
+    """Evaluate scalar eos using precomputed composition arrays.
 
     This skips `Composition` validation and output dictionary construction.
     The return order is `lnPgas`, `lnE`, `lnS`, `grad_ad`, `gamma1`.
@@ -541,7 +548,7 @@ def eos_dt_raw(
         xa_array,
     )
     lnPgas, lnE, lnS, grad_ad, gamma1, ierr = values
-    _check_ierr("MESA EOS", ierr)
+    _check_ierr("MESA eos", ierr)
     return (float(lnPgas), float(lnE), float(lnS), float(grad_ad), float(gamma1))
 
 
@@ -551,10 +558,10 @@ def eos_dt_full(
     Rho: float,
     comp: Composition | Mapping[str, float] | Iterable[float] | None = None,
 ) -> dict[str, dict[str, float] | dict[str, dict[str, float]]]:
-    """Evaluate MESA EOS and return the full `eosDT_get` result vectors.
+    """Evaluate MESA eos and return the full `eosDT_get` result vectors.
 
     Inputs are temperature in K, density in g/cm^3, and mass fractions. Output
-    dictionaries are keyed by MESA EOS result names for `results`, `d_dlnRho`,
+    dictionaries are keyed by MESA eos result names for `results`, `d_dlnRho`,
     `d_dlnT`, and composition derivatives `d_dxa`.
     """
     _prepare_mesa_cache_env()
@@ -567,7 +574,7 @@ def eos_dt_full(
         composition_data.xa,
     )
     res, d_dlnRho, d_dlnT, d_dxa, ierr = values
-    _check_ierr("MESA EOS", ierr)
+    _check_ierr("MESA eos", ierr)
     return _eos_full_output_dict(composition_data, res, d_dlnRho, d_dlnT, d_dxa)
 
 
@@ -580,7 +587,7 @@ def eos_dt_full_raw(
     *,
     validate: bool = False,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Evaluate scalar EOS and return raw result and derivative arrays."""
+    """Evaluate scalar eos and return raw result and derivative arrays."""
     _prepare_mesa_cache_env()
     chem_id_array, xa_array = _prepare_scalar_composition_arrays(
         chem_id_values, xa, validate=validate
@@ -593,7 +600,7 @@ def eos_dt_full_raw(
         xa_array,
     )
     res, d_dlnRho, d_dlnT, d_dxa, ierr = values
-    _check_ierr("MESA EOS", ierr)
+    _check_ierr("MESA eos", ierr)
     return (
         np.asarray(res, dtype=np.float64),
         np.asarray(d_dlnRho, dtype=np.float64),
@@ -612,7 +619,7 @@ def eos_dt_profile(
     input_mode: str | int = "value",
     output: str = "raw",
 ) -> dict[str, object]:
-    """Evaluate EOS across a profile.
+    """Evaluate eos across a profile.
 
     `input_mode` selects how `T` and `Rho` are interpreted: `"value"` for
     physical cgs values, `"log"` for natural logs, and `"log10"` for base-10
@@ -633,7 +640,7 @@ def eos_dt_profile(
     out_T, out_Rho, res, ierr, failed_zone = values
     if int(ierr) != 0:
         raise RuntimeError(
-            "MESA EOS profile call failed with "
+            "MESA eos profile call failed with "
             f"ierr={int(ierr)} at zone={int(failed_zone)}"
         )
 
@@ -668,7 +675,7 @@ def kap_opacity_profile(
     type2_full_off_dZ: float | None = None,
     type2_full_on_dZ: float | None = None,
 ) -> dict[str, object]:
-    """Evaluate KAP across a profile.
+    """Evaluate kap across a profile.
 
     `input_mode` selects physical values (`"value"`), natural logs (`"log"`),
     or base-10 logs (`"log10"`) for `T` and `Rho`.
@@ -696,7 +703,7 @@ def kap_opacity_profile(
     T, Rho, kappa, dlnkap_dlnRho, dlnkap_dlnT, ierr, failed_zone = values
     if int(ierr) != 0:
         raise RuntimeError(
-            "MESA KAP profile call failed with "
+            "MESA kap profile call failed with "
             f"ierr={int(ierr)} at zone={int(failed_zone)}"
         )
 
@@ -757,7 +764,7 @@ def eos_kap_profile(
     type2_full_off_dZ: float | None = None,
     type2_full_on_dZ: float | None = None,
 ) -> dict[str, object]:
-    """Evaluate EOS and KAP across a profile with one EOS call per zone."""
+    """Evaluate eos and kap across a profile with one eos call per zone."""
     _prepare_mesa_cache_env()
     mode_value = _profile_input_mode(input_mode)
     T_array, Rho_array, chem_id_array, xa_array = _prepare_profile_arrays(
@@ -790,7 +797,7 @@ def eos_kap_profile(
     ) = values
     if int(ierr) != 0:
         raise RuntimeError(
-            "MESA EOS/KAP profile call failed with "
+            "MESA eos/kap profile call failed with "
             f"ierr={int(ierr)} at zone={int(failed_zone)}"
         )
 
@@ -846,7 +853,7 @@ def eos_solve_rho(
 ) -> dict[str, float | int | dict[str, float] | dict[str, dict[str, float]]]:
     """Solve for density using MESA `eosDT_get_Rho`.
 
-    `T` is in K. `other` selects one EOS result, such as `"lnPgas"` or
+    `T` is in K. `other` selects one eos result, such as `"lnPgas"` or
     `"lnE"`. `other_value` must be in MESA's result units; for `lnPgas`, pass
     the natural log of the target gas pressure in cgs units.
     """
@@ -866,7 +873,7 @@ def eos_solve_rho(
         int(max_iter),
     )
     rho_result, log_rho, res, d_dlnRho, d_dlnT, d_dxa, eos_calls, ierr = values
-    _check_ierr("MESA EOS solve rho", ierr)
+    _check_ierr("MESA eos solve rho", ierr)
     output = _eos_full_output_dict(composition_data, res, d_dlnRho, d_dlnT, d_dxa)
     return {
         "Rho": float(rho_result),
@@ -890,7 +897,7 @@ def eos_solve_t(
 ) -> dict[str, float | int | dict[str, float] | dict[str, dict[str, float]]]:
     """Solve for temperature using MESA `eosDT_get_T`.
 
-    `Rho` is in g/cm^3. `other` selects one EOS result, such as `"lnPgas"` or
+    `Rho` is in g/cm^3. `other` selects one eos result, such as `"lnPgas"` or
     `"lnE"`. `other_value` must be in MESA's result units; for `lnPgas`, pass
     the natural log of the target gas pressure in cgs units.
     """
@@ -910,7 +917,7 @@ def eos_solve_t(
         int(max_iter),
     )
     T_result, log_T, res, d_dlnRho, d_dlnT, d_dxa, eos_calls, ierr = values
-    _check_ierr("MESA EOS solve T", ierr)
+    _check_ierr("MESA eos solve T", ierr)
     output = _eos_full_output_dict(composition_data, res, d_dlnRho, d_dlnT, d_dxa)
     return {
         "T": float(T_result),
@@ -918,9 +925,6 @@ def eos_solve_t(
         "eos_calls": int(eos_calls),
         **output,
     }
-
-
-eos_solve_T = eos_solve_t
 
 
 @_timed_api("eos.solve_rho_profile")
@@ -972,7 +976,7 @@ def eos_solve_rho_profile(
     ) = values
     if int(ierr) != 0:
         raise RuntimeError(
-            "MESA EOS solve rho profile call failed with "
+            "MESA eos solve rho profile call failed with "
             f"ierr={int(ierr)} at zone={int(failed_zone)}"
         )
 
@@ -1031,7 +1035,7 @@ def eos_solve_t_profile(
     ) = values
     if int(ierr) != 0:
         raise RuntimeError(
-            "MESA EOS solve T profile call failed with "
+            "MESA eos solve T profile call failed with "
             f"ierr={int(ierr)} at zone={int(failed_zone)}"
         )
 
@@ -1039,9 +1043,6 @@ def eos_solve_t_profile(
         "T", "logT", T_result, log_T, res, d_dlnRho, d_dlnT, d_dxa,
         eos_calls, Rho_array.size, chem_id_array.size,
     )
-
-
-eos_solve_T_profile = eos_solve_t_profile
 
 
 def _kap_control_args(
@@ -1107,7 +1108,7 @@ def kap_opacity(
     """Evaluate MESA opacity at known `T`, `Rho`, and composition.
 
     Inputs are temperature in K, density in g/cm^3, and mass fractions. The
-    wrapper first calls EOS for electron quantities needed by KAP. Outputs are
+    wrapper first calls eos for electron quantities needed by kap. Outputs are
     opacity `kappa` in cm^2/g and logarithmic derivatives with respect to
     `Rho` and `T`.
     """
@@ -1131,7 +1132,7 @@ def kap_opacity(
         *controls,
     )
     kappa, dlnkap_dlnRho, dlnkap_dlnT, ierr = values
-    _check_ierr("MESA KAP", ierr)
+    _check_ierr("MESA kap", ierr)
     return {
         "kappa": float(kappa),
         "dlnkap_dlnRho": float(dlnkap_dlnRho),
@@ -1178,7 +1179,7 @@ def kap_opacity_raw(
         *controls,
     )
     kappa, dlnkap_dlnRho, dlnkap_dlnT, ierr = values
-    _check_ierr("MESA KAP", ierr)
+    _check_ierr("MESA kap", ierr)
     return (float(kappa), float(dlnkap_dlnRho), float(dlnkap_dlnT))
 
 
@@ -1198,7 +1199,7 @@ def eos_kap_raw(
     type2_full_off_dZ: float | None = None,
     type2_full_on_dZ: float | None = None,
 ) -> tuple[np.ndarray, float, float, float]:
-    """Evaluate scalar EOS and opacity with one Fortran EOS call."""
+    """Evaluate scalar eos and opacity with one Fortran eos call."""
     _prepare_mesa_cache_env()
     chem_id_array, xa_array = _prepare_scalar_composition_arrays(
         chem_id_values, xa, validate=validate
@@ -1221,11 +1222,11 @@ def eos_kap_raw(
         *controls,
     )
     res, kappa, dlnkap_dlnRho, dlnkap_dlnT, ierr = values
-    _check_ierr("MESA EOS/KAP", ierr)
+    _check_ierr("MESA eos/kap", ierr)
     result_array = np.asarray(res, dtype=np.float64)
     if result_array.shape != (len(EOS_RESULT_NAMES),):
         raise RuntimeError(
-            "MESA EOS/KAP scalar wrapper returned EOS result shape "
+            "MESA eos/kap scalar wrapper returned eos result shape "
             f"{result_array.shape}; expected ({len(EOS_RESULT_NAMES)},)"
         )
     return (
@@ -1276,7 +1277,7 @@ def kap_opacity_full(
         *controls,
     )
     kap_fracs, kappa, dlnkap_dlnRho, dlnkap_dlnT, dlnkap_dxa, ierr = values
-    _check_ierr("MESA KAP", ierr)
+    _check_ierr("MESA kap", ierr)
     return {
         "kappa": float(kappa),
         "dlnkap_dlnRho": float(dlnkap_dlnRho),
@@ -1325,7 +1326,7 @@ def kap_opacity_full_raw(
         *controls,
     )
     kap_fracs, kappa, dlnkap_dlnRho, dlnkap_dlnT, dlnkap_dxa, ierr = values
-    _check_ierr("MESA KAP", ierr)
+    _check_ierr("MESA kap", ierr)
     return (
         float(kappa),
         float(dlnkap_dlnRho),
@@ -1371,7 +1372,7 @@ class Chem:
 
 
 class Eos:
-    """Small Python handle for MESA EOS calls."""
+    """Small Python handle for MESA eos calls."""
 
     def dt(
         self,
@@ -1379,7 +1380,7 @@ class Eos:
         Rho: float,
         comp: Composition | Mapping[str, float] | Iterable[float] | None = None,
     ) -> dict[str, float]:
-        """Evaluate EOS at temperature `T` in K and density `Rho` in g/cm^3."""
+        """Evaluate eos at temperature `T` in K and density `Rho` in g/cm^3."""
         return eos_dt(T, Rho, comp)
 
     def dt_raw(
@@ -1391,7 +1392,7 @@ class Eos:
         *,
         validate: bool = False,
     ) -> tuple[float, float, float, float, float]:
-        """Evaluate EOS with precomputed composition arrays."""
+        """Evaluate eos with precomputed composition arrays."""
         return eos_dt_raw(T, Rho, chem_id_values, xa, validate=validate)
 
     def dt_full(
@@ -1400,7 +1401,7 @@ class Eos:
         Rho: float,
         comp: Composition | Mapping[str, float] | Iterable[float] | None = None,
     ) -> dict[str, dict[str, float] | dict[str, dict[str, float]]]:
-        """Evaluate EOS and return full result and derivative dictionaries."""
+        """Evaluate eos and return full result and derivative dictionaries."""
         return eos_dt_full(T, Rho, comp)
 
     def dt_full_raw(
@@ -1412,7 +1413,7 @@ class Eos:
         *,
         validate: bool = False,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """Evaluate EOS and return raw result and derivative arrays."""
+        """Evaluate eos and return raw result and derivative arrays."""
         return eos_dt_full_raw(T, Rho, chem_id_values, xa, validate=validate)
 
     def dt_profile(
@@ -1425,7 +1426,7 @@ class Eos:
         input_mode: str | int = "value",
         output: str = "raw",
     ) -> dict[str, object]:
-        """Evaluate EOS across a profile."""
+        """Evaluate eos across a profile."""
         return eos_dt_profile(
             T,
             Rho,
@@ -1444,7 +1445,7 @@ class Eos:
         *,
         output: str = "dict",
     ) -> dict[str, object]:
-        """Evaluate EOS across a saved-model style profile."""
+        """Evaluate eos across a saved-model style profile."""
         return eos_dt_profile_from_logs(
             lnT,
             lnd,
@@ -1465,7 +1466,7 @@ class Eos:
         other_tol: float = 1.0e-10,
         max_iter: int = 100,
     ) -> dict[str, float | int | dict[str, float] | dict[str, dict[str, float]]]:
-        """Solve for density at known `T` and one selected EOS result."""
+        """Solve for density at known `T` and one selected eos result."""
         return eos_solve_rho(
             T,
             other,
@@ -1489,7 +1490,7 @@ class Eos:
         other_tol: float = 1.0e-10,
         max_iter: int = 100,
     ) -> dict[str, float | int | dict[str, float] | dict[str, dict[str, float]]]:
-        """Solve for temperature at known `Rho` and one selected EOS result."""
+        """Solve for temperature at known `Rho` and one selected eos result."""
         return eos_solve_t(
             Rho,
             other,
@@ -1500,8 +1501,6 @@ class Eos:
             other_tol=other_tol,
             max_iter=max_iter,
         )
-
-    solve_T = solve_t
 
     def solve_rho_profile(
         self,
@@ -1559,11 +1558,9 @@ class Eos:
             max_iter=max_iter,
         )
 
-    solve_T_profile = solve_t_profile
-
 
 class Kap:
-    """Small Python handle for MESA KAP opacity calls."""
+    """Small Python handle for MESA kap opacity calls."""
 
     def __init__(
         self,
@@ -1576,9 +1573,9 @@ class Kap:
         type2_full_off_dZ: float | None = None,
         type2_full_on_dZ: float | None = None,
     ) -> None:
-        """Store KAP controls used by this Python object.
+        """Store kap controls used by this Python object.
 
-        The underlying Fortran KAP handle is process-persistent. This Python
+        The underlying Fortran kap handle is process-persistent. This Python
         object stores the controls to apply before each opacity call.
         """
         self._controls = {
@@ -1623,7 +1620,7 @@ class Kap:
         *,
         validate: bool = False,
     ) -> tuple[np.ndarray, float, float, float]:
-        """Evaluate scalar EOS and opacity with one EOS call."""
+        """Evaluate scalar eos and opacity with one eos call."""
         return eos_kap_raw(
             T, Rho, chem_id_values, xa, validate=validate, **self._controls
         )
@@ -1696,7 +1693,7 @@ class Kap:
         input_mode: str | int = "value",
         output: str = "raw",
     ) -> dict[str, object]:
-        """Evaluate EOS and opacity across a profile."""
+        """Evaluate eos and opacity across a profile."""
         return eos_kap_profile(
             T,
             Rho,
@@ -1716,7 +1713,7 @@ class Kap:
         *,
         output: str = "dict",
     ) -> dict[str, object]:
-        """Evaluate EOS and opacity across a saved-model style profile."""
+        """Evaluate eos and opacity across a saved-model style profile."""
         return eos_kap_profile_from_logs(
             lnT,
             lnd,
@@ -1739,6 +1736,13 @@ __all__ = [
     "Kap",
     "MESA_CONSTANT_NAMES",
     "SAMPLE_ISOTOPES",
+    "eos_dxa_result_names",
+    "eos_result_index",
+    "eos_result_names",
+    "kap_control_unset",
+    "kap_frac_names",
+    "mesa_constant_names",
+    "sample_isotopes",
     "composition",
     "composition_info",
     "composition_info_full",
@@ -1754,8 +1758,6 @@ __all__ = [
     "eos_kap_profile_from_logs",
     "eos_kap_profile",
     "eos_dt_profile_from_logs",
-    "eos_solve_T",
-    "eos_solve_T_profile",
     "eos_solve_rho",
     "eos_solve_rho_profile",
     "eos_solve_t",

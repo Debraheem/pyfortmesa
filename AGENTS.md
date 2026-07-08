@@ -81,7 +81,7 @@ checks only.
   data: `chem_id_values` plus `xa`.
 - Profile helpers should accept fixed `xa(species)` when the composition is
   constant across zones, and `xa(species, nzones)` when it varies by zone.
-- Do not recommend scalar EOS/KAP calls inside a Python zone loop. Move profile
+- Do not recommend scalar eos/kap calls inside a Python zone loop. Move profile
   work into Fortran batch wrappers.
 - High-throughput profile APIs should favor raw arrays. Named dictionaries are
   useful for interactive/user-facing paths, but raw arrays avoid unnecessary
@@ -99,9 +99,17 @@ checks only.
 - Prefer high-level public-call timing labels in production paths. Add internal
   phase timers only when there is a concrete profiling question that needs them.
 
-## EOS/KAP Conventions
+## eos/kap Conventions
 
-- MESA EOS `lnPgas` is gas pressure, not total pressure.
+- In prose and docs, write `eos` and `kap` in lower case unless using an exact
+  code identifier.
+- Keep established metadata constants in all-caps form when that makes their
+  role clear, such as `EOS_RESULT_NAMES`, `KAP_FRAC_NAMES`, and
+  `MESA_CONSTANT_NAMES`. Lowercase aliases may exist for convenience, but the
+  all-caps names are canonical.
+- Preserve MESA-native names and conventional symbols with their actual spelling,
+  such as `FreeEOS`, `HELM`, `OPAL/SCVH`, `MESA_DIR`, `T`, `Rho`, and `Prad`.
+- MESA `eos` `lnPgas` is gas pressure, not total pressure.
 - Radiation pressure is reconstructed from temperature:
 
 ```text
@@ -116,13 +124,15 @@ Erad = crad*T**4/Rho
 Egas = exp(lnE) - Erad
 ```
 
-- KAP table exploration commonly uses the base-10 coordinate:
-
-```text
-logR = logRho - 3*logT + 18
-```
-
-This is not the same as natural-log `*_from_logs` input.
+- pyfortmesa profile APIs take temperature and density arrays directly. Pass
+  physical `T`/`Rho` with `input_mode="value"`, natural logs with
+  `input_mode="log"`, or base-10 logs with `input_mode="log10"`.
+- Do not exponentiate caller-owned `logT`/`logRho` arrays in Python just to
+  call the physical-value path. Let the wrapper handle log inputs.
+- Do not introduce opacity-table coordinates in normal usage examples. Mention
+  them only when an example is explicitly about sampling an opacity table along
+  a chosen table coordinate; pyfortmesa call inputs remain density and
+  temperature.
 
 ## Lifecycle and Handles
 

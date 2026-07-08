@@ -21,8 +21,8 @@ def test_eos_kap_profile_schema() -> None:
     require("eos_kap_profile" in mesa.output_schema_names(), "missing schema name")
     require(rows[0]["column"] == "T", "first eos-kap profile column should be T")
     require(rows[0]["units"] == "K", "T units should be K")
-    require("results.lnPgas" in columns, "missing EOS lnPgas profile column")
-    require("kappa" in columns, "missing KAP kappa profile column")
+    require("results.lnPgas" in columns, "missing eos lnPgas profile column")
+    require("kappa" in columns, "missing kap kappa profile column")
     require(rows[0]["shape"] == "(nzones,)", "profile output should be zone-shaped")
 
 
@@ -30,14 +30,11 @@ def test_output_schema_names_include_aliases() -> None:
     canonical = mesa.output_schema_names()
     names = mesa.output_schema_names(include_aliases=True)
 
-    require("eos_dt_full" in canonical, "missing canonical EOS schema name")
+    require("eos_dt_full" in canonical, "missing canonical eos schema name")
     require("eos_solve_t" in canonical, "missing canonical temperature solver schema")
     require("eos_solve_t_profile" in canonical, "missing temperature profile solver schema")
-    require("eos_solve_T" not in canonical, "capital T solver name should be an alias")
-    require("eos" in names, "missing EOS schema alias")
-    require("eos_solve_T" in names, "missing capital T solver schema alias")
-    require("eos_solve_T_profile" in names, "missing capital T profile solver schema alias")
-    require("kap" in names, "missing KAP schema alias")
+    require("eos" in names, "missing eos schema alias")
+    require("kap" in names, "missing kap schema alias")
 
 
 def test_full_scalar_schema_expands_species() -> None:

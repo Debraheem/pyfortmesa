@@ -32,7 +32,7 @@ from pyfortmesa import mesa
 mesa.set_cache_root(".")
 ```
 
-Call this before the first EOS/KAP call in a Python process.
+Call this before the first eos/kap call in a Python process.
 
 ### `mesa.set_inlist(...)`
 
@@ -42,7 +42,7 @@ Signature:
 mesa.set_inlist(inlist: str | os.PathLike[str] | None) -> None
 ```
 
-Sets the optional MESA-style inlist used by the EOS/KAP wrappers. The file can
+Sets the optional MESA-style inlist used by the eos/kap wrappers. The file can
 contain both `&eos` and `&kap` namelists.
 
 Inputs:
@@ -57,7 +57,7 @@ Example:
 mesa.set_inlist("inlist_eos_and_kap")
 ```
 
-Call this before the first EOS/KAP call in a Python process. Existing MESA
+Call this before the first eos/kap call in a Python process. Existing MESA
 handles keep the controls they already read.
 
 ## Shutdown helper
@@ -70,7 +70,7 @@ Signature:
 mesa.shutdown(*, release_tables: bool = False) -> None
 ```
 
-Releases persistent pyfortmesa EOS/KAP handles.
+Releases persistent pyfortmesa eos/kap handles.
 
 Inputs:
 

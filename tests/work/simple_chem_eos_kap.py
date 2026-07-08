@@ -30,7 +30,7 @@ def main() -> int:
     kap = mesa.Kap()
 
     try:
-        # One scalar CHEM, EOS, and KAP call.
+        # One scalar chem, eos, and kap call.
         chem_info = mesa.Chem().composition_info(mix)
         eos_out = eos.dt_full(T=1.0e7, Rho=1.0e2, comp=mix)
         kap_out = kap.opacity_full(T=1.0e6, Rho=1.0e-7, comp=mix)

@@ -1,13 +1,13 @@
-"""Evaluate MESA EOS at every zone in a text `.mod` saved model.
+"""Evaluate MESA eos at every zone in a text `.mod` saved model.
 
 This example reads a MESA star saved-model file, parses the profile mass
 fractions, and passes `lnT`, `lnd`, isotope ids, and `xa(species, nzones)` to a
 Fortran batch wrapper. The wrapper reconstructs `T` and `rho`, then calls
 `eosDT_get` once per zone.
 
-The saved model used here does not store EOS result columns such as `lnPgas` or
-`gamma1`, so those values are printed as newly computed EOS outputs rather than
-checked against reference EOS values from the file.
+The saved model used here does not store eos result columns such as `lnPgas` or
+`gamma1`, so those values are printed as newly computed eos outputs rather than
+checked against reference eos values from the file.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ from mesa_mod_profile_reader import (
 
 @dataclass(frozen=True)
 class EosZoneOutput:
-    """Small EOS output record for display and timing."""
+    """Small eos output record for display and timing."""
 
     zone: int
     T: float
@@ -48,7 +48,7 @@ class EosZoneOutput:
 
 @dataclass(frozen=True)
 class KapZoneOutput:
-    """Small KAP output record for display and timing."""
+    """Small kap output record for display and timing."""
 
     zone: int
     T: float
@@ -355,22 +355,22 @@ def _call_profile_physics(
 ) -> tuple[object | None, object | None]:
     if physics == "eos-kap":
         if kap is None:
-            raise RuntimeError("KAP object is not initialized")
-        # One Fortran loop: EOS first, then KAP uses that electron state.
+            raise RuntimeError("kap object is not initialized")
+        # One Fortran loop: eos first, then kap uses that electron state.
         combined = kap.eos_kap_profile_from_logs(lnT, lnd, chem_id_values, xa)
         return combined, combined
 
     if physics == "eos":
         if eos is None:
-            raise RuntimeError("EOS object is not initialized")
+            raise RuntimeError("eos object is not initialized")
         # One Python call for the whole profile; Fortran loops over zones.
         eos_output = eos.dt_profile_from_logs(lnT, lnd, chem_id_values, xa)
         return eos_output, None
 
     if physics == "kap":
         if kap is None:
-            raise RuntimeError("KAP object is not initialized")
-        # KAP asks EOS for lnfree_e and eta before kap_get.
+            raise RuntimeError("kap object is not initialized")
+        # kap asks eos for lnfree_e and eta before kap_get.
         kap_output = kap.opacity_profile_from_logs(lnT, lnd, chem_id_values, xa)
         return None, kap_output
 
@@ -401,7 +401,7 @@ def _profile_arrays(
     zones: tuple[SavedModelZone, ...],
     isotope_columns: tuple[str, ...],
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return saved-model arrays for one Fortran batch EOS call."""
+    """Return saved-model arrays for one Fortran batch eos call."""
     lnT = np.asfortranarray([zone.lnT for zone in zones], dtype=np.float64)
     lnd = np.asfortranarray([zone.lnd for zone in zones], dtype=np.float64)
     xa = np.asfortranarray(
@@ -475,8 +475,8 @@ def print_mapping(title: str, values: dict[str, float | bool | str]) -> None:
 
 
 def print_eos_outputs(outputs: Iterable[EosZoneOutput]) -> None:
-    """Print selected EOS outputs."""
-    print("sample EOS outputs:")
+    """Print selected eos outputs."""
+    print("sample eos outputs:")
     for output in outputs:
         values = asdict(output)
         print(
@@ -493,8 +493,8 @@ def print_eos_outputs(outputs: Iterable[EosZoneOutput]) -> None:
 
 
 def print_kap_outputs(outputs: Iterable[KapZoneOutput]) -> None:
-    """Print selected KAP outputs."""
-    print("sample KAP outputs:")
+    """Print selected kap outputs."""
+    print("sample kap outputs:")
     for output in outputs:
         values = asdict(output)
         print(
@@ -556,7 +556,7 @@ def parse_args() -> argparse.Namespace:
         choices=("eos", "kap", "eos-kap"),
         default="eos",
         help=(
-            "Profile physics to time. KAP timing includes the EOS electron-state "
+            "Profile physics to time. kap timing includes the eos electron-state "
             "call required by kap_get."
         ),
     )
@@ -575,7 +575,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--parse-only",
         action="store_true",
-        help="Parse the saved model and print comparisons without EOS calls.",
+        help="Parse the saved model and print comparisons without eos calls.",
     )
     parser.add_argument(
         "--timing-json",
@@ -599,7 +599,7 @@ def main() -> int:
     zones = profile.selected_zones(args.max_zones)
     parse_seconds = perf_counter() - parse_start
 
-    print("MESA saved-model EOS profile example")
+    print("MESA saved-model eos profile example")
     print(f"model = {profile.path}")
     print(f"model_number = {profile.metadata.get('model_number', 'unknown')}")
     print(f"net_name = {profile.metadata.get('net_name', 'unknown')}")
@@ -608,11 +608,11 @@ def main() -> int:
     print(f"parse_seconds = {parse_seconds:.6e}")
 
     if args.parse_only:
-        print("parse-only mode: no EOS calls made")
+        print("parse-only mode: no eos calls made")
         return 0
 
     if os.environ.get("PYFORTMESA_WITH_MESA") != "1":
-        print("skipped: set PYFORTMESA_WITH_MESA=1 to run EOS calls")
+        print("skipped: set PYFORTMESA_WITH_MESA=1 to run eos calls")
         return 0
 
     repo_root = Path(__file__).resolve().parents[2]
@@ -721,7 +721,7 @@ def main() -> int:
     if not _has_eos_reference_columns(profile):
         print(
             "note: this .mod file stores lnd, lnT, and composition, "
-            "but not EOS result columns such as lnPgas or gamma1."
+            "but not eos result columns such as lnPgas or gamma1."
         )
 
     return 0

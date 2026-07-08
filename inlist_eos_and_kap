@@ -1,12 +1,12 @@
 ! Example pyfortmesa controls file.
 !
-! This is one MESA-style inlist with both EOS and KAP namelists. Use it with:
+! This is one MESA-style inlist with both eos and kap namelists. Use it with:
 !
 !    from pyfortmesa import mesa
 !    mesa.set_inlist("inlist_eos_and_kap")
 !
 ! MESA loads its module defaults first, then applies these values. Python
-! keyword controls can still override the KAP controls for a specific call.
+! keyword controls can still override the kap controls for a specific call.
 
 &eos
    use_FreeEOS = .true.

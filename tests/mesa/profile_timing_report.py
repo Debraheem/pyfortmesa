@@ -160,14 +160,14 @@ def parse_args() -> argparse.Namespace:
         action="append",
         default=[],
         type=Path,
-        help="Timing JSON from an EOS, KAP, or EOS+KAP single run.",
+        help="Timing JSON from an eos, kap, or eos+kap single run.",
     )
     parser.add_argument(
         "--sweep",
         action="append",
         default=[],
         type=Path,
-        help="Timing JSON from one EOS+KAP thread-sweep run.",
+        help="Timing JSON from one eos+kap thread-sweep run.",
     )
     return parser.parse_args()
 

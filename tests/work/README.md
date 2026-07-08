@@ -25,5 +25,5 @@ The example does four things:
    fixed `xa(species)` vector or a Fortran-ordered `xa(species, zones)` array.
 
 That last call is the pattern to copy when both eos and kap are needed across a
-profile. The notebook uses raw profile outputs, so EOS result rows are indexed
+profile. The notebook uses raw profile outputs, so eos result rows are indexed
 with `mesa.EOS_RESULT_NAMES`.

@@ -31,7 +31,7 @@ print(info["abar"])
 | `xa` | mass fraction | `(species,)` | mass fractions in the same order as `names` |
 | `species` | count | scalar | number of isotopes in the composition |
 
-Scalar EOS/KAP helpers accept a `Composition` directly as `comp=mix`. Profile
+Scalar eos/kap helpers accept a `Composition` directly as `comp=mix`. Profile
 helpers take the same information split into `chem_id_values` and
 `xa(species, nzones)`.
 
@@ -264,7 +264,7 @@ mesa_chem_shutdown -> chem_shutdown
 - Scalar helpers accept `comp=mix`, but profile helpers need
   `chem_id_values` and `xa(species, nzones)`.
 - `mesa.composition(...)` does not run MESA `net`. It only maps isotope names
-  and mass fractions into the layout expected by the EOS/KAP wrappers.
+  and mass fractions into the layout expected by the eos/kap wrappers.
 
 ## Other CHEM candidates
 

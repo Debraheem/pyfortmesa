@@ -2,7 +2,7 @@
 
 This is intentionally a small parser for MESA's ASCII `.mod` saved model files.
 It does not call MESA star or load a restart photo. The profile table supplies
-the thermodynamic inputs needed by the pyfortmesa EOS examples:
+the thermodynamic inputs needed by the pyfortmesa eos examples:
 
     lnd = ln(rho)
     lnT = ln(T)

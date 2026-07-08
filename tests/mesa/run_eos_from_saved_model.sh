@@ -167,7 +167,7 @@ if not hasattr(eos, "mesa_eos_profile_from_logs"):
 if not hasattr(eos, "mesa_eos_shutdown"):
     raise SystemExit(1)
 ' 2>&1)"; then
-    echo "pyfortmesa imports mesa, but the compiled EOS extension is missing or old."
+    echo "pyfortmesa imports mesa, but the compiled eos extension is missing or old."
     echo "current import location: ${installed_location:-not importable}"
     echo "extension error:"
     echo "$extension_check"
@@ -187,7 +187,7 @@ if not hasattr(kap, "mesa_kap_profile_from_logs"):
 if not hasattr(kap, "mesa_eos_kap_profile_from_logs"):
     raise SystemExit(1)
 ' 2>&1)"; then
-      echo "pyfortmesa imports mesa, but the compiled KAP extension is missing the profile wrapper."
+      echo "pyfortmesa imports mesa, but the compiled kap extension is missing the profile wrapper."
       echo "current import location: ${installed_location:-not importable}"
       echo "extension error:"
       echo "$kap_extension_check"
@@ -202,7 +202,7 @@ if not hasattr(kap, "mesa_eos_kap_profile_from_logs"):
   # Run one profile job, optionally pinning OMP_NUM_THREADS.
   run_profile_check() {
     if (( $# == 1 )); then
-      echo "== MESA EOS profile check (OMP_NUM_THREADS=$1)"
+      echo "== MESA eos profile check (OMP_NUM_THREADS=$1)"
       if (( ${#script_args[@]} > 0 )); then
         OMP_NUM_THREADS="$1" PYFORTMESA_WITH_MESA=1 python "$test_file" "${script_args[@]}"
       else
@@ -211,7 +211,7 @@ if not hasattr(kap, "mesa_eos_kap_profile_from_logs"):
       return
     fi
 
-    echo "== MESA EOS profile check (OMP_NUM_THREADS=${OMP_NUM_THREADS:-unset})"
+    echo "== MESA eos profile check (OMP_NUM_THREADS=${OMP_NUM_THREADS:-unset})"
     if (( ${#script_args[@]} > 0 )); then
       PYFORTMESA_WITH_MESA=1 python "$test_file" "${script_args[@]}"
     else
@@ -297,5 +297,5 @@ if not hasattr(kap, "mesa_eos_kap_profile_from_logs"):
     run_profile_check
   fi
 else
-  echo "skipped MESA run: pass --with-mesa to call EOS"
+  echo "skipped MESA run: pass --with-mesa to call eos"
 fi

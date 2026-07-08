@@ -31,14 +31,14 @@ Ptot = Pgas + Prad
 
 ## Pressure and energy conventions
 
-MESA's EOS result vector stores gas pressure:
+MESA's `eos` result vector stores gas pressure:
 
 ```text
 results["lnPgas"] = ln(Pgas)
 Pgas = total pressure - radiation pressure
 ```
 
-Radiation pressure is not a separate EOS result. Reconstruct it from
+Radiation pressure is not a separate eos result. Reconstruct it from
 temperature:
 
 ```python
@@ -56,7 +56,7 @@ Egas = Etotal - Erad
 ```
 
 So `lnPgas` is gas-only, while other thermodynamic quantities such as `lnE`,
-`lnS`, `Cp`, `grad_ad`, `chiRho`, `chiT`, and `gamma1` are MESA EOS
+`lnS`, `Cp`, `grad_ad`, `chiRho`, `chiT`, and `gamma1` are MESA `eos`
 thermodynamic results and should not be treated as a gas-only namespace.
 
 ## Public API
@@ -153,9 +153,9 @@ Returns:
 
 | key | shape | meaning |
 | --- | --- | --- |
-| `results` | dict by EOS result name | full MESA `eosDT_get` result vector |
-| `d_dlnRho` | dict by EOS result name | derivative at constant `T` |
-| `d_dlnT` | dict by EOS result name | derivative at constant `Rho` |
+| `results` | dict by eos result name | full MESA `eosDT_get` result vector |
+| `d_dlnRho` | dict by eos result name | derivative at constant `T` |
+| `d_dlnT` | dict by eos result name | derivative at constant `Rho` |
 | `d_dxa` | nested dict | composition derivatives for `lnPgas` and `lnE` |
 
 Representative result names:
@@ -244,11 +244,11 @@ Returns:
 | --- | --- | --- |
 | `T` | `(nzones,)` | temperature used by the wrapper |
 | `Rho` | `(nzones,)` | density used by the wrapper |
-| `results` | `(n_eos_results, nzones)` | raw EOS result matrix when `output="raw"` |
+| `results` | `(n_eos_results, nzones)` | raw eos result matrix when `output="raw"` |
 | `result_names` | `(n_eos_results,)` | row names for raw `results`; equal to `mesa.EOS_RESULT_NAMES` |
 
 With `output="dict"`, `results[name]` is a copied `(nzones,)` array for each
-EOS result name. Use raw output for throughput loops.
+eos result name. Use raw output for throughput loops.
 
 Fixed-composition example:
 
@@ -314,14 +314,14 @@ Inputs:
 | argument | units | shape | meaning |
 | --- | --- | --- | --- |
 | `T` | K | scalar | fixed temperature |
-| `other` | result name or index | scalar | EOS result to match |
+| `other` | result name or index | scalar | eos result to match |
 | `other_value` | MESA result units | scalar | target value for `other` |
 | `Rho_guess` | `g cm^-3` | scalar | initial density guess |
 | `logRho_tol` | `log10(g cm^-3)` | scalar | density tolerance |
 | `other_tol` | result units | scalar | target-result tolerance |
 | `max_iter` | count | scalar | maximum solver iterations |
 
-Returns `Rho`, `logRho`, `eos_calls`, and the full EOS output dictionaries.
+Returns `Rho`, `logRho`, `eos_calls`, and the full eos output dictionaries.
 
 Example:
 
@@ -338,7 +338,7 @@ rho_solve = mesa.Eos().solve_rho(
 
 For `lnPgas`, pass the natural log of gas pressure, not total pressure.
 
-### `mesa.eos_solve_t(...)`, `mesa.eos_solve_T(...)`, and `mesa.Eos().solve_t(...)`
+### `mesa.eos_solve_t(...)` and `mesa.Eos().solve_t(...)`
 
 Signature:
 
@@ -356,22 +356,21 @@ mesa.eos_solve_t(
 ) -> dict[str, object]
 ```
 
-Solves for temperature using MESA `eosDT_get_T`. `eos_solve_T` and
-`Eos().solve_T` are aliases for the lower-case spelling.
+Solves for temperature using MESA `eosDT_get_T`.
 
 Inputs:
 
 | argument | units | shape | meaning |
 | --- | --- | --- | --- |
 | `Rho` | `g cm^-3` | scalar | fixed density |
-| `other` | result name or index | scalar | EOS result to match |
+| `other` | result name or index | scalar | eos result to match |
 | `other_value` | MESA result units | scalar | target value for `other` |
 | `T_guess` | K | scalar | initial temperature guess |
 | `logT_tol` | `log10(K)` | scalar | temperature tolerance |
 | `other_tol` | result units | scalar | target-result tolerance |
 | `max_iter` | count | scalar | maximum solver iterations |
 
-Returns `T`, `logT`, `eos_calls`, and the full EOS output dictionaries.
+Returns `T`, `logT`, `eos_calls`, and the full eos output dictionaries.
 
 ### `mesa.eos_solve_rho_profile(...)` and `mesa.Eos().solve_rho_profile(...)`
 
@@ -398,7 +397,7 @@ to the known `T` profile. `Rho_guess` is always physical `g cm^-3` and may be
 scalar or `(nzones,)`. Raw outputs include `Rho`, `logRho`, `eos_calls`,
 `results`, `d_dlnRho`, `d_dlnT`, and `d_dxa`.
 
-### `mesa.eos_solve_t_profile(...)`, `mesa.eos_solve_T_profile(...)`, and `mesa.Eos().solve_t_profile(...)`
+### `mesa.eos_solve_t_profile(...)` and `mesa.Eos().solve_t_profile(...)`
 
 Signature:
 
@@ -420,8 +419,7 @@ mesa.eos_solve_t_profile(
 
 OpenMP-batched profile version of `eos_solve_t(...)`. `input_mode` applies to
 the known `Rho` profile. `T_guess` is always physical K and may be scalar or
-`(nzones,)`. `eos_solve_T_profile` and `Eos().solve_T_profile` are aliases for
-the lower-case spelling.
+`(nzones,)`.
 
 ## Output schemas
 
@@ -433,7 +431,7 @@ print(mesa.format_output_schema("eos_dt_full", species=mix.names))
 print(mesa.format_output_schema("eos_dt_profile"))
 ```
 
-Supported EOS schema names are listed by:
+Supported eos schema names are listed by:
 
 ```python
 mesa.output_schema_names()
@@ -483,7 +481,7 @@ but the public Python API uses named `Composition` objects instead.
 | `eos_ptr` | Exposes MESA pointer state; not safe or useful for normal Python calls. |
 | `eos_get_control_namelist`, `eos_set_control_namelist` | Current control path is `mesa.set_inlist(...)`; exposing raw namelist buffers is a larger API. |
 | `eosPT_get` and related `eosPT_*` routines | Potentially useful, but not needed while `eosDT_get_Rho/T` cover the current inverse workflows. Add only with examples and tests. |
-| gamma-law EOS helper family | Specialized analytic EOS path; not the same workflow as MESA table EOS/KAP calls. |
+| gamma-law eos helper family | Specialized analytic eos path; not the same workflow as MESA table eos/kap calls. |
 | HELM component/conversion helpers | Lower-level diagnostics; current API exposes the final MESA result vector. |
 | Fermi-Dirac integral helper | Standalone numerical helper, not a pyfortmesa microphysics workflow yet. |
 | `num_eos_files_loaded` | Debug/diagnostic only; can be added later if needed for table-loading diagnostics. |

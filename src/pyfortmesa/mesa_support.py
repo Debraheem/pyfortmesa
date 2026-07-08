@@ -42,7 +42,7 @@ def mesa_pkg_config_path() -> str:
 
 
 def set_cache_root(cache_root: str | os.PathLike[str] | None = ".") -> None:
-    """Set where MESA EOS/KAP table caches should be written.
+    """Set where MESA eos/kap table caches should be written.
 
     `cache_root="."` writes under the current directory. `cache_root=None`
     leaves MESA cache paths at MESA's own defaults.
@@ -61,7 +61,7 @@ def set_cache_root(cache_root: str | os.PathLike[str] | None = ".") -> None:
 
 
 def set_inlist(inlist: str | os.PathLike[str] | None) -> None:
-    """Set the shared EOS/KAP controls inlist for later MESA handle creation.
+    """Set the shared eos/kap controls inlist for later MESA handle creation.
 
     The path is explicit on purpose. pyfortmesa does not silently search the
     current directory for an inlist.
@@ -218,6 +218,15 @@ KAP_FRAC_NAMES = ("lowT", "highT", "Type2", "Compton")
 EOS_RESULT_INDEX = {name: index for index, name in enumerate(EOS_RESULT_NAMES, start=1)}
 _EOS_RESULT_INDEX_LOWER = {name.lower(): index for name, index in EOS_RESULT_INDEX.items()}
 KAP_CONTROL_UNSET = -1.0
+
+# Lowercase aliases are supported, but the all-caps names remain canonical.
+sample_isotopes = SAMPLE_ISOTOPES
+mesa_constant_names = MESA_CONSTANT_NAMES
+eos_result_names = EOS_RESULT_NAMES
+eos_dxa_result_names = EOS_DXA_RESULT_NAMES
+kap_frac_names = KAP_FRAC_NAMES
+eos_result_index = EOS_RESULT_INDEX
+kap_control_unset = KAP_CONTROL_UNSET
 
 
 # Optional timing state.
@@ -443,8 +452,6 @@ _OUTPUT_SCHEMA_ALIASES = {
     "kap_profile": "kap_opacity_profile",
     "eos_kap": "eos_kap_profile",
     "eos-kap": "eos_kap_profile",
-    "eos_solve_T": "eos_solve_t",
-    "eos_solve_T_profile": "eos_solve_t_profile",
 }
 
 _EOS_RESULT_UNITS = {
@@ -495,13 +502,13 @@ _EOS_RESULT_COMMENTS = {
     "phase": "1 solid, 0 liquid, in-between for blend",
     "latent_ddlnT": "T*dS/dlnT from phase transition",
     "latent_ddlnRho": "T*dS/dlnRho from phase transition",
-    "HELM": "EOS blend fraction",
-    "OPAL/SCVH": "EOS blend fraction",
-    "FreeEOS": "EOS blend fraction",
-    "PC": "EOS blend fraction",
-    "Skye": "EOS blend fraction",
-    "CMS": "EOS blend fraction",
-    "ideal": "EOS blend fraction",
+    "HELM": "eos blend fraction",
+    "OPAL/SCVH": "eos blend fraction",
+    "FreeEOS": "eos blend fraction",
+    "PC": "eos blend fraction",
+    "Skye": "eos blend fraction",
+    "CMS": "eos blend fraction",
+    "ideal": "eos blend fraction",
 }
 _KAP_FRAC_COMMENTS = {
     "lowT": "low-temperature opacity fraction",
@@ -687,7 +694,7 @@ def output_schema_names(*, include_aliases: bool = False) -> tuple[str, ...]:
 def output_schema(
     name: str, *, species: Composition | Iterable[str] | None = None
 ) -> tuple[dict[str, str], ...]:
-    """Return output fields for a pyfortmesa EOS/KAP helper.
+    """Return output fields for a pyfortmesa eos/kap helper.
 
     Each row has `column`, `path`, `units`, `shape`, and `comment` keys. The
     helper is metadata-only; it does not import or call the compiled MESA
@@ -705,7 +712,7 @@ def output_schema(
                 [
                     _schema_field("Rho", "g/cm^3", "scalar", "solved density"),
                     _schema_field("logRho", "log10(g/cm^3)", "scalar", "log10 density"),
-                    _schema_field("eos_calls", "count", "scalar", "EOS solver calls"),
+                    _schema_field("eos_calls", "count", "scalar", "eos solver calls"),
                 ]
             )
         elif key == "eos_solve_t":
@@ -713,7 +720,7 @@ def output_schema(
                 [
                     _schema_field("T", "K", "scalar", "solved temperature"),
                     _schema_field("logT", "log10(K)", "scalar", "log10 temperature"),
-                    _schema_field("eos_calls", "count", "scalar", "EOS solver calls"),
+                    _schema_field("eos_calls", "count", "scalar", "eos solver calls"),
                 ]
             )
         rows.extend(_eos_result_schema("results", "scalar"))
@@ -730,7 +737,7 @@ def output_schema(
                 [
                     _schema_field("Rho", "g/cm^3", "(nzones,)", "solved density"),
                     _schema_field("logRho", "log10(g/cm^3)", "(nzones,)", "log10 density"),
-                    _schema_field("eos_calls", "count", "(nzones,)", "EOS solver calls"),
+                    _schema_field("eos_calls", "count", "(nzones,)", "eos solver calls"),
                 ]
             )
         else:
@@ -738,7 +745,7 @@ def output_schema(
                 [
                     _schema_field("T", "K", "(nzones,)", "solved temperature"),
                     _schema_field("logT", "log10(K)", "(nzones,)", "log10 temperature"),
-                    _schema_field("eos_calls", "count", "(nzones,)", "EOS solver calls"),
+                    _schema_field("eos_calls", "count", "(nzones,)", "eos solver calls"),
                 ]
             )
         rows.extend(_eos_result_schema("results", "(nzones,)", raw_profile=True))
@@ -972,12 +979,12 @@ def _normalize_isotope_name(name: str) -> str:
 
 def _eos_result_index(which: str | int) -> int:
     if isinstance(which, bool):
-        raise TypeError("EOS result selector must be a result name or integer index")
+        raise TypeError("eos result selector must be a result name or integer index")
 
     if isinstance(which, int):
         if which < 1 or which > len(EOS_RESULT_NAMES):
             raise ValueError(
-                f"EOS result index must be between 1 and {len(EOS_RESULT_NAMES)}"
+                f"eos result index must be between 1 and {len(EOS_RESULT_NAMES)}"
             )
         return which
 
@@ -990,7 +997,7 @@ def _eos_result_index(which: str | int) -> int:
         except KeyError as exc:
             names = ", ".join(EOS_RESULT_NAMES)
             raise ValueError(
-                f"unknown EOS result selector {which!r}; use: {names}"
+                f"unknown eos result selector {which!r}; use: {names}"
             ) from exc
 
 
@@ -1074,6 +1081,13 @@ __all__ = [
     "KAP_FRAC_NAMES",
     "MESA_CONSTANT_NAMES",
     "SAMPLE_ISOTOPES",
+    "eos_dxa_result_names",
+    "eos_result_index",
+    "eos_result_names",
+    "kap_control_unset",
+    "kap_frac_names",
+    "mesa_constant_names",
+    "sample_isotopes",
     "composition",
     "disable_timing",
     "enable_timing",

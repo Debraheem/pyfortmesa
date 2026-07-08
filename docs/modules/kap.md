@@ -3,7 +3,7 @@
 Status: active in the `./mk mesa` build.
 
 Purpose: call MESA `kap` for known density, temperature, and static composition.
-The wrapper calls EOS first so KAP receives the MESA electron quantities required
+The wrapper calls eos first so kap receives the MESA electron quantities required
 by `kap_get`.
 
 ## Fast start
@@ -22,7 +22,7 @@ print(out["kappa"])
 print(out["kap_fracs"])
 ```
 
-## KAP controls
+## kap controls
 
 `mesa.Kap(...)` stores Python-side controls that are applied before each opacity
 call. The underlying MESA handle is process-persistent.
@@ -54,7 +54,7 @@ MESA kap.defaults
 | `type2_full_on_dZ` | mass fraction | Type2 full-on composition threshold |
 
 `None` means leave the corresponding MESA value unchanged. If no inlist is set
-and no Python override is given, pyfortmesa keeps Type2 off so ordinary KAP
+and no Python override is given, pyfortmesa keeps Type2 off so ordinary kap
 calls do not require `zbase`.
 
 ## Public API
@@ -86,7 +86,7 @@ Inputs:
 | `T` | K | scalar | temperature |
 | `Rho` | `g cm^-3` | scalar | density |
 | `comp` | mass fraction | scalar composition | `Composition`, isotope mapping, legacy vector, or `None` |
-| KAP controls | mixed | scalar | optional Python overrides listed above |
+| kap controls | mixed | scalar | optional Python overrides listed above |
 
 Returns:
 
@@ -167,8 +167,8 @@ mesa.eos_kap_raw(
 ) -> tuple[np.ndarray, float, float, float]
 ```
 
-This is the scalar fused EOS+KAP fast path. It calls EOS once, returns the EOS
-result vector, and passes the electron state from that EOS call to KAP.
+This is the scalar fused eos+kap fast path. It calls eos once, returns the eos
+result vector, and passes the electron state from that eos call to kap.
 
 Returns:
 
@@ -191,7 +191,7 @@ gamma1 = results[i_gamma1]
 ```
 
 Use this instead of calling `eos.dt_raw(...)` and `kap.opacity_raw(...)` when a
-scalar loop needs both EOS and KAP outputs for the same state.
+scalar loop needs both eos and kap outputs for the same state.
 
 ### `mesa.kap_opacity_full(...)` and `mesa.Kap().opacity_full(...)`
 
@@ -321,29 +321,23 @@ dlnkap_dlnRho
 dlnkap_dlnT
 ```
 
-KAP tables are usually reasoned about in the base-10 opacity coordinate:
-
-```text
-logR = logRho - 3*logT + 18
-```
-
-Fixed-composition profile example at constant `logR`:
+Fixed-composition profile example with physical `T` and `Rho` arrays:
 
 ```python
-log_T = np.linspace(3.75, 8.0, 1000)
-log_R = np.full_like(log_T, -3.0)
-log_rho = log_R + 3.0*log_T - 18.0
-
-T = 10.0**log_T
-rho = 10.0**log_rho
+T = np.linspace(6.0e5, 2.5e6, 1000)
+rho = np.full_like(T, 1.0e-7)
 
 profile = mesa.Kap().opacity_profile(T, rho, mix.chem_id, mix.xa)
 opacity = profile["kappa"]
 ```
 
-The same call can avoid `10**` conversion by passing base-10 logs directly:
+If the caller already stores base-10 `logT` and `logRho`, pass those arrays
+directly:
 
 ```python
+log_T = np.linspace(5.8, 6.4, 1000)
+log_rho = np.full_like(log_T, -7.0)
+
 profile = mesa.Kap().opacity_profile(log_T, log_rho, mix.chem_id, mix.xa, input_mode="log10")
 ```
 
@@ -395,15 +389,15 @@ mesa.eos_kap_profile(
 ) -> dict[str, object]
 ```
 
-This is the preferred profile path when both EOS and KAP outputs are needed. It
-computes the EOS state once per zone and passes that state to KAP.
+This is the preferred profile path when both eos and kap outputs are needed. It
+computes the eos state once per zone and passes that state to kap.
 
 Returns:
 
 ```text
 T
 Rho
-results             # raw EOS matrix, shape (n_eos_results, nzones)
+results             # raw eos matrix, shape (n_eos_results, nzones)
 result_names        # row names for results
 kappa
 dlnkap_dlnRho
@@ -413,9 +407,8 @@ dlnkap_dlnT
 Example:
 
 ```python
-combined = mesa.Kap().eos_kap_profile(T, rho, mix.chem_id, mix.xa)
-i_gamma1 = mesa.EOS_RESULT_NAMES.index("gamma1")
-gamma1 = combined["results"][i_gamma1, :]
+combined = mesa.Kap().eos_kap_profile(T, rho, mix.chem_id, mix.xa, output="dict")
+gamma1 = combined["results"]["gamma1"]
 kappa = combined["kappa"]
 ```
 
@@ -485,8 +478,8 @@ level no-control Fortran wrappers, but the public Python API uses the
 
 - `input_mode="log"` means natural log; use `input_mode="log10"` for base-10
   `logT` and `logRho`.
-- For KAP table exploration, choose a reasonable `logR` track instead of an
-  arbitrary `logT`/`logRho` diagonal.
+- Pass log-space inputs with `input_mode`; do not exponentiate them in Python
+  just to call the physical-value path.
 - Scalar helpers accept `comp=mix`; profile helpers require
   `chem_id_values` and `xa(species,)` or `xa(species, nzones)`.
 - `mesa.Kap(...)` creates a Python control object, not an independent MESA

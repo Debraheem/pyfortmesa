@@ -1,4 +1,4 @@
-"""Optional MESA EOS/KAP example for a named composition."""
+"""Optional MESA eos/kap example for a named composition."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pyfortmesa import mesa
 
 
 def call_eos_and_kap() -> None:
-    """Call MESA EOS and KAP through pyfortmesa for one composition."""
+    """Call MESA eos and kap through pyfortmesa for one composition."""
     repo_root = Path(__file__).resolve().parents[2]
     mesa.set_inlist(repo_root / "inlist_eos_and_kap")
 
@@ -19,7 +19,7 @@ def call_eos_and_kap() -> None:
     mass_fractions = {"h1": 0.70, "he4": 0.28, "c12": 0.02}
     mix = mesa.composition(mass_fractions)
 
-    # EOS and KAP state points.
+    # eos and kap state points.
     eos_T = 1.0e7
     eos_rho = 1.0e2
     kap_T = 1.0e6
@@ -29,7 +29,7 @@ def call_eos_and_kap() -> None:
     kap = mesa.Kap()
     kap_type2 = mesa.Kap(use_type2=True, zbase=0.02)
 
-    # EOS at fixed T and rho, then two inverse checks.
+    # eos at fixed T and rho, then two inverse checks.
     eos_result = eos.dt(T=eos_T, Rho=eos_rho, comp=mix)
     eos_full_result = eos.dt_full(T=eos_T, Rho=eos_rho, comp=mix)
     eos_raw_result = eos.dt_raw(eos_T, eos_rho, mix.chem_id, mix.xa)
@@ -49,7 +49,7 @@ def call_eos_and_kap() -> None:
         comp=mix,
     )
 
-    # KAP at fixed T and rho. KAP asks EOS for electron state internally.
+    # kap at fixed T and rho. kap asks eos for electron state internally.
     kap_result = kap.opacity(T=kap_T, Rho=kap_rho, comp=mix)
     kap_full_result = kap.opacity_full(T=kap_T, Rho=kap_rho, comp=mix)
     kap_raw_result = kap.opacity_raw(kap_T, kap_rho, mix.chem_id, mix.xa)
@@ -95,12 +95,12 @@ def call_eos_and_kap() -> None:
     eos_kap_res, eos_kap_kappa, eos_kap_dlnrho, eos_kap_dlnt = eos_kap_raw_result
     eos_at_kap = eos.dt_full_raw(kap_T, kap_rho, mix.chem_id, mix.xa)[0]
     if not np.allclose(eos_kap_res, eos_at_kap, rtol=1.0e-12, atol=0.0):
-        raise AssertionError("kap.eos_kap_raw EOS results do not match eos.dt_full_raw")
+        raise AssertionError("kap.eos_kap_raw eos results do not match eos.dt_full_raw")
     if not np.allclose(
         (eos_kap_kappa, eos_kap_dlnrho, eos_kap_dlnt), kap_short_from_dict,
         rtol=1.0e-12, atol=0.0
     ):
-        raise AssertionError("kap.eos_kap_raw KAP outputs do not match kap.opacity")
+        raise AssertionError("kap.eos_kap_raw kap outputs do not match kap.opacity")
 
     kap_raw_kappa, kap_raw_dlnrho, kap_raw_dlnt, kap_raw_fracs, kap_raw_dxa = (
         kap_full_raw_result
@@ -122,19 +122,19 @@ def call_eos_and_kap() -> None:
     if not np.allclose(kap_raw_dxa, kap_full_dxa, rtol=1.0e-12, atol=0.0):
         raise AssertionError("kap.opacity_full_raw dlnkap_dxa does not match")
 
-    print("MESA EOS/KAP arbitrary-composition example")
+    print("MESA eos/kap arbitrary-composition example")
     print(f"composition mass fractions = {mass_fractions}")
-    print(f"EOS input: T = {eos_T:.6e} K, rho = {eos_rho:.6e} g/cm^3")
-    print(f"KAP input: T = {kap_T:.6e} K, rho = {kap_rho:.6e} g/cm^3")
-    print(f"EOS output = {eos_result}")
-    print(f"EOS full result names = {list(eos_full_result['results'])}")
-    print(f"EOS d_dxa output = {eos_full_result['d_dxa']}")
-    print(f"EOS solve_rho output rho = {eos_rho_solve['Rho']:.6e} g/cm^3")
-    print(f"EOS solve_t output T = {eos_T_solve['T']:.6e} K")
-    print(f"KAP output = {kap_result}")
-    print(f"KAP opacity fractions = {kap_full_result['kap_fracs']}")
-    print(f"KAP dlnkap_dxa output = {kap_full_result['dlnkap_dxa']}")
-    print(f"KAP Type2-controlled opacity fractions = {kap_type2_result['kap_fracs']}")
+    print(f"eos input: T = {eos_T:.6e} K, rho = {eos_rho:.6e} g/cm^3")
+    print(f"kap input: T = {kap_T:.6e} K, rho = {kap_rho:.6e} g/cm^3")
+    print(f"eos output = {eos_result}")
+    print(f"eos full result names = {list(eos_full_result['results'])}")
+    print(f"eos d_dxa output = {eos_full_result['d_dxa']}")
+    print(f"eos solve_rho output rho = {eos_rho_solve['Rho']:.6e} g/cm^3")
+    print(f"eos solve_t output T = {eos_T_solve['T']:.6e} K")
+    print(f"kap output = {kap_result}")
+    print(f"kap opacity fractions = {kap_full_result['kap_fracs']}")
+    print(f"kap dlnkap_dxa output = {kap_full_result['dlnkap_dxa']}")
+    print(f"kap Type2-controlled opacity fractions = {kap_type2_result['kap_fracs']}")
     print("raw scalar parity checks = ok")
 
 
